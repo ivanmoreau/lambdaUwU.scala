@@ -1,0 +1,7 @@
+out
+.idea*
+.bsp
+.metals
+.bloop
+.DS_Store
+.direnv/

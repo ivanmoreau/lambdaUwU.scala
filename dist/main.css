@@ -1,0 +1,81 @@
+
+
+body {
+  font-family: 'Fira Code';
+  color: #fff;
+  background-color: #1d1d1d;
+}
+
+#app-container div {
+}
+
+#prompt-zone {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  column-gap: 10px;
+  border-radius: 10px;
+  padding: 0.6em;
+  background-color: #303030
+}
+
+#prompt-zone span {
+  font-family: 'Fira Code';
+  color: #fff;
+}
+
+#prompt-zone button {
+  font-family: 'Fira Code';
+  color: #fff;
+  border-width: 0;
+  background-color: transparent;
+}
+
+#prompt {
+  font-family: 'Fira Code';
+  font-size: 1.2rem;
+  text-shadow: 0px 2px 3px #181818;
+  border-left-width: 0;
+  border-right-width: 0;
+  border-top-width: 0;
+  border-bottom-width: 1px;
+  flex-grow: 1;
+}
+
+#editor {
+}
+
+
+.codejar-linenumbers div {
+  left: 0px;
+  top: 10px;
+}
+
+.codejar-linenumbers {
+  width: auto !important;
+  position: inherit !important;
+  padding-right: 9px;
+  background-color: transparent !important;
+  color: rgb(221 221 221 / 48%) !important;
+}
+
+#editor {
+  padding-left: 0.6em !important;
+  flex-grow: 1;
+}
+
+.codejar-wrap {
+  display: flex;
+  border-radius: 10px;
+  padding: 0.6em;
+  background-color: #303030;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+#output {
+  border-radius: 10px;
+  padding: 0.6em;
+  background-color: #303030
+}
