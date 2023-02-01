@@ -9,9 +9,6 @@ import scala.scalajs.js.annotation.{JSGlobal, JSGlobalScope, JSImport}
 import com.ivmoreau.lambda.{Expr, ParserExpr, PrinterExpr}
 import com.ivmoreau.lambda.evaluate
 
-val a: dom.Element = dom.document.querySelector("sd")
-
-val nameVar = Var(initial = "world")
 val promptVar = Var(initial = "\\x -> x")
 val outVar = Var(initial = "n/a")
 val editorVar = Var(initial = "id = \\x -> x.")
@@ -44,19 +41,6 @@ val rootElement = div(
     idAttr := "editor",
     onInput.mapToValue --> editorVar
   ),
-  label("Your name: "),
-  input(
-    onMountFocus,
-    placeholder := "Enter your name here",
-    onInput.mapToValue --> nameVar
-  ),
-  span(
-    "Hello, ",
-    child.text <-- nameVar.signal.map(_.toUpperCase),
-    div(
-      "hi"
-    )
-  ),
   div(
     idAttr := "output",
     "Output: ",
@@ -68,7 +52,6 @@ val rootElement = div(
   )
 )
 
-// In most other examples, containerNode will be set to this behind the scenes
 val containerNode = dom.document.querySelector("#app-container")
 
 @main def run =
