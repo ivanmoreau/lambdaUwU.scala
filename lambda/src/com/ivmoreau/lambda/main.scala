@@ -20,6 +20,21 @@ val parserExprObserver = Observer[String](onNext = {str =>
   outVar.set(str)
 })
 
+def libInfo(component: String, info: List[(String, String)]) =
+  val x = info.map((n, in) => li(i(n), ": ", in)).foldLeft(ul())((a, b) => a.amend(b))
+  div(
+    h4(component, "~~"),
+    x
+  )
+
+def option(opt: String) =
+  span(
+    input(
+      typ := "checkbox"
+    ),
+    opt,
+  )
+
 val rootElement = div(
   h1(
     "λ -> " + "MangoLambdaUwU"
@@ -38,6 +53,10 @@ val rootElement = div(
     computeButton
   ),
   div(
+    idAttr := "options",
+    option("Enable Unsigned Integers (uInt)")
+  ),
+  div(
     idAttr := "editor",
     onInput.mapToValue --> editorVar
   ),
@@ -46,10 +65,21 @@ val rootElement = div(
     "Output: ",
     child.text <-- outVar.signal,
     computeButton.events(onClick).map(_ => {
-      println("Caled")
       promptVar.now().evaluate(document.querySelector("#editor").textContent)
     }) --> parserExprObserver
-  )
+  ),
+  h3("StdLib"),
+  div(
+    idAttr := "stdlib",
+    libInfo("Unsigned Integers Extension", List(
+      "add" -> "Adds two uInts.",
+      "succ" -> "Successor of an uInt."
+    ))
+  ),
+  div(
+    idAttr := "footer",
+    "Made with ScalaJS, Laminar, Scala 3, Parboiled2, Nix and Mill 🤗."
+  ),
 )
 
 val containerNode = dom.document.querySelector("#app-container")

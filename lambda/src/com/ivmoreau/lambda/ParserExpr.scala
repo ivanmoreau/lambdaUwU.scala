@@ -4,7 +4,7 @@ import Expr.*
 import cats.data.NonEmptyList
 import org.parboiled2.*
 
-class ParserExpr(val input: ParserInput) extends Parser:
+class ParserExpr(val input: ParserInput, val allowNats: Boolean = false) extends Parser:
   def unfree(expr: Expr, s: Map[String, Int]): Expr =
     expr match
       case x@Free(v) => s.get(v) match
@@ -30,6 +30,18 @@ class ParserExpr(val input: ParserInput) extends Parser:
       Expr.Free(a)
     }
   }
+
+  def Digits: Rule1[Int] = rule { capture(oneOrMore {
+    CharPredicate.Digit
+  }) ~ WS ~> ((str: String) => str.toInt)}
+  def Natural: Rule1[Expr] = rule {
+    test(allowNats) ~ Digits ~> ((d: Int) => Nat(d))
+  }
+
+  def AtomExpr: Rule1[Expr] = rule {
+    VariableExpr | Natural
+  }
+
   def Comma: Rule0 = rule { "," ~ WS }
   def ParensExpr: Rule1[Expr] = rule { "(" ~ WS ~ Expression ~ ")" ~ WS }
   def Lambda: Rule0 = rule { "\\" | "λ" }
@@ -54,6 +66,6 @@ class ParserExpr(val input: ParserInput) extends Parser:
     }
   }
   def Application: Rule1[Expr] = rule {
-    oneOrMore(Abstraction | VariableExpr | ParensExpr) ~> ((a: Seq[Expr]) => app(a))
+    oneOrMore(Abstraction | AtomExpr | ParensExpr) ~> ((a: Seq[Expr]) => app(a))
   }
 

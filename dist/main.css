@@ -79,3 +79,15 @@ body {
   padding: 0.6em;
   background-color: #303030
 }
+
+#footer {
+  padding: 10px;
+  margin-top: 1rem;
+  margin-bottom: .2rem;
+  color: rgb(221 221 221 / 48%)
+}
+
+#options {
+  margin-top: 1rem;
+  margin-bottom: .2rem;
+}
