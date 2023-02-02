@@ -27,12 +27,28 @@ def libInfo(component: String, info: List[(String, String)]) =
     x
   )
 
+def checkbox(variable: Var[Boolean]) =
+  val class_ = (a: Boolean) => a match
+    case true => "check-select"
+    case false => "check-unselect"
+  button(
+    idAttr := "checkbox",
+    cls <-- useUInt.signal.map(class_),
+    onClick.map { _ =>
+      !variable.now()
+    } --> useUInt
+  )
+
+val useUInt: Var[Boolean] = Var(false)
+val extensions: () => Extensions = () => Extensions(
+  useUInt = useUInt.now()
+)
+
 def option(opt: String) =
   span(
-    input(
-      typ := "checkbox"
-    ),
+    checkbox(useUInt),
     opt,
+    cls := "option"
   )
 
 val rootElement = div(
@@ -65,7 +81,7 @@ val rootElement = div(
     "Output: ",
     child.text <-- outVar.signal,
     computeButton.events(onClick).map(_ => {
-      promptVar.now().evaluate(document.querySelector("#editor").textContent)
+      promptVar.now().evaluate(document.querySelector("#editor").textContent)(extensions())
     }) --> parserExprObserver
   ),
   h3("StdLib"),

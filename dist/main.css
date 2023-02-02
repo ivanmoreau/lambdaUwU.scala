@@ -91,3 +91,58 @@ body {
   margin-top: 1rem;
   margin-bottom: .2rem;
 }
+
+#options input {
+  appearance: none;
+  background-color: #fff;
+  margin: 0;
+  font: inherit;
+  color: currentColor;
+  width: 1.15em;
+  height: 1.15em;
+  border: 0.15em solid currentColor;
+  border-radius: 0.15em;
+  transform: translateY(-0.075em);
+  display: grid;
+  place-content: center;
+}
+
+#options input:checked {
+  color: #000;
+  background-color: #000;
+  transform-origin: bottom left;
+  box-shadow: inset 1em 1em var(--form-control-color);
+  margin: 1px;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+#options .option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#checkbox {
+  border: 2px solid #fff;
+  border-radius: 4px;
+  display: inline-flex;
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.check-unselect {
+  background-color: #fff
+}
+
+.check-select {
+  background-color: #ff6e6e
+}
+
+#checkmark {
+  color: #000;
+  background-color: #000;
+  transform-origin: bottom left;
+  box-shadow: inset 1em 1em var(--form-control-color);
+  margin: 1px;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}

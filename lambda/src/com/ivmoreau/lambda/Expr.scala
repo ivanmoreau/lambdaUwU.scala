@@ -11,10 +11,14 @@ val natFnExtensions: Map[String, Expr] = Map.from(List(
   case _ => ("impossible", Expr.Nat(0))
 })
 
+case class Extensions(
+ useUInt: Boolean = false
+)
+
 extension (str: String)
-  def evaluate(ctx: String): String =
+  def evaluate(ctx: String)(extensions: Extensions): String =
     val ctx_instance = new ParserExpr(ctx)
-    val input_instance = new ParserExpr(str, allowNats = true)
+    val input_instance = new ParserExpr(str, allowNats = extensions.useUInt)
     val ctx_n: Try[Seq[Decl]] = ctx_instance.Program.run()
     val input_n: Try[Expr] = input_instance.InputLine.run()
     println(s"$ctx")
