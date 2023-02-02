@@ -3,22 +3,54 @@ package com.ivmoreau.lambda
 import scala.util.{Failure, Success, Try}
 import org.parboiled2.*
 
+val subZero: (Int, Int) => Int =
+  case (n, m) => if n - m < 0 then 0 else n - m
+
 val natFnExtensions: Map[String, Expr] = Map.from(List(
   Expr.FunNat("succ", (a: Int) => Expr.Nat(a + 1)),
-  Expr.FunNat("add", (a: Int) => Expr.FunNat("add$Partial", (b: Int) => Expr.Nat(a + b)))
+  Expr.FunNat("add", (a: Int) => Expr.FunNat("add$Partial", (b: Int) => Expr.Nat(a + b))),
+  Expr.FunNat("sub", (a: Int) => Expr.FunNat("sub$Partial", (b: Int) => Expr.Nat(subZero(a, b))))
+).map {
+  case e@Expr.FunNat(n, f) => (n, e)
+  case _ => ("impossible", Expr.Nat(0))
+})
+
+val boolFnExtensions: Map[String, Expr] = Map.from(List(
+  Expr.FunBool("if", (a: Boolean) => Expr.Abs(Expr.Abs({
+    if a then Expr.Var(1) else Expr.Var(0)
+  })))
+).map {
+  case e@Expr.FunBool(n, f) => (n, e)
+  case _ => ("impossible", Expr.Nat(0))
+}) ++ Map.from(List(("true", Expr.Bool(true)), ("false", Expr.Bool(false))))
+
+val boolNatFnExtension: Map[String, Expr] = Map.from(List(
+  Expr.FunNat("eqN", (a: Int) => Expr.FunNat("eqN$Partial", (b: Int) => Expr.Bool(a == b)))
 ).map {
   case e@Expr.FunNat(n, f) => (n, e)
   case _ => ("impossible", Expr.Nat(0))
 })
 
 case class Extensions(
- useUInt: Boolean = false
+  useNativeNats: Boolean = false,
+  useNativeBools: Boolean = false
 )
 
 def reservedWords(extensions: Extensions): List[String] =
   def iff(b: Boolean, e: Map[String, Expr]): List[String] =
     if b then e.keys.toList else List("\\")
-  iff(extensions.useUInt, natFnExtensions)
+  val natE = iff(extensions.useNativeNats, natFnExtensions)
+  val boolE = iff(extensions.useNativeBools, boolFnExtensions)
+  val natBoolE = iff(extensions.useNativeBools && extensions.useNativeNats, boolNatFnExtension)
+  natE ++ boolE ++ natBoolE
+
+def contextAdditions(extensions: Extensions): Map[String, Expr] =
+  def iff(b: Boolean, e: Map[String, Expr]): Map[String, Expr] =
+    if b then e else Map()
+  val natE = iff(extensions.useNativeNats, natFnExtensions)
+  val boolE = iff(extensions.useNativeBools, boolFnExtensions)
+  val natBoolE = iff(extensions.useNativeBools && extensions.useNativeNats, boolNatFnExtension)
+  natE ++ boolE ++ natBoolE
 
 extension (str: String)
   def evaluate(ctx: String)(extensions: Extensions): String =
@@ -39,7 +71,7 @@ extension (str: String)
       for
         iExpr <- b
         cExprs <- a
-      yield Evaluator(iExpr, cExprs ++ natFnExtensions).eval()
+      yield Evaluator(iExpr, cExprs ++ contextAdditions(extensions)).eval()
     almost match
       case Left(value) => value
       case Right(value) =>
@@ -54,7 +86,9 @@ enum Expr:
   case Abs(val e: Expr)
   case App(val l: Expr, val r: Expr)
   case Nat(val n: Int)
+  case Bool(val n: Boolean)
   case FunNat(val name: String, val f: Int => Expr)
+  case FunBool(val name: String, val f: Boolean => Expr)
 
 enum Decl:
   case Bind(val name: String, val expr: Expr)
@@ -72,7 +106,9 @@ case class PrinterExpr(expr: Expr, ident: Int = 0, noIdent: Boolean = false):
       case Expr.Abs(e) => s"λ ->${identation._2}${this.copy(expr = e, ident = ident + 2).print()}"
       case Expr.App(l, r) => s"(${this.copy(expr = l).print()} ${this.copy(expr = r).print()})"
       case Expr.Nat(n) => n.toString
+      case Expr.Bool(n) => n.toString
       case Expr.FunNat(n, _) => n
+      case Expr.FunBool(n, _) => n
     identation._1 + newExpr
 
 case class Evaluator(expr: Expr, ctx: Map[String, Expr]):
@@ -103,6 +139,8 @@ case class Evaluator(expr: Expr, ctx: Map[String, Expr]):
     case App(Abs(t1), t2) => unshift(1, 0, substitution(t1, shift(1, 0, t2), 0))
     case App(FunNat(n, f), Nat(v)) => f(v)
     case App(FunNat(n, f), e) => App(FunNat(n, f), betaB(e))
+    case App(FunBool(n, f), Bool(v)) => f(v)
+    case App(FunBool(n, f), e) => App(FunBool(n, f), betaB(e))
     case App(Var(n), t2) => App(Var(n), betaB(t2))
     case App(Free(v), t2) => ctx.get(v) match
       case Some(value) => App(value, t2)

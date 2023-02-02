@@ -33,20 +33,23 @@ def checkbox(variable: Var[Boolean]) =
     case false => "check-unselect"
   button(
     idAttr := "checkbox",
-    cls <-- useUInt.signal.map(class_),
+    cls <-- variable.signal.map(class_),
     onClick.map { _ =>
       !variable.now()
-    } --> useUInt
+    } --> variable
   )
 
-val useUInt: Var[Boolean] = Var(false)
+val useNativeNats: Var[Boolean] = Var(false)
+val useNativeBools: Var[Boolean] = Var(false)
+
 val extensions: () => Extensions = () => Extensions(
-  useUInt = useUInt.now()
+  useNativeNats = useNativeNats.now(),
+  useNativeBools = useNativeBools.now()
 )
 
-def option(opt: String) =
+def option(opt: String, v: Var[Boolean]) =
   span(
-    checkbox(useUInt),
+    checkbox(v),
     opt,
     cls := "option"
   )
@@ -70,7 +73,8 @@ val rootElement = div(
   ),
   div(
     idAttr := "options",
-    option("Enable Unsigned Integers (uInt)")
+    option("Enable Native Naturals (nNat)", useNativeNats),
+    option("Enable Native Booleans (nBool)", useNativeBools)
   ),
   div(
     idAttr := "editor",
@@ -87,9 +91,16 @@ val rootElement = div(
   h3("StdLib"),
   div(
     idAttr := "stdlib",
-    libInfo("Unsigned Integers Extension", List(
+    libInfo("Native (non-lambda) Naturals Extension", List(
       "add" -> "Adds two uInts.",
-      "succ" -> "Successor of an uInt."
+      "succ" -> "Successor of an uInt.",
+      "sub" -> "Subtract the second element to the first one without overflow (0 is the lowest).",
+      "eqN" -> "Equivalence of native naturals (Only if Booleans extension is enabled)."
+    )),
+    libInfo("Native (non-lambda) Booleans Extension", List(
+      "true" -> "True.",
+      "false" -> "False.",
+      "if" -> "If-Else comparison. i.e: «if (x) (y) (z)», that reads as 'if x then y else z'"
     ))
   ),
   div(

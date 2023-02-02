@@ -35,7 +35,7 @@ class ParserExpr(val input: ParserInput, val extensions: Extensions, val reserve
     CharPredicate.Digit
   }) ~ WS ~> ((str: String) => str.toInt)}
   def Natural: Rule1[Expr] = rule {
-    test(extensions.useUInt) ~ Digits ~> ((d: Int) => Nat(d))
+    test(extensions.useNativeNats) ~ Digits ~> ((d: Int) => Nat(d))
   }
 
   def AtomExpr: Rule1[Expr] = rule {
