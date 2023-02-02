@@ -4,7 +4,7 @@ import Expr.*
 import cats.data.NonEmptyList
 import org.parboiled2.*
 
-class ParserExpr(val input: ParserInput, val allowNats: Boolean = false) extends Parser:
+class ParserExpr(val input: ParserInput, val extensions: Extensions, val reservedWords: List[String] = List("\\")) extends Parser:
   def unfree(expr: Expr, s: Map[String, Int]): Expr =
     expr match
       case x@Free(v) => s.get(v) match
@@ -19,9 +19,9 @@ class ParserExpr(val input: ParserInput, val allowNats: Boolean = false) extends
     case 2 => App(expr.head, expr(1))
     case n => expr.tail.foldLeft(expr.head)((head, new_) => App(head, new_))
 
-  def InputLine: Rule1[Expr] = rule { Expression ~ EOI }
+  def InputLine: Rule1[Expr] = rule { Expression ~ quiet(EOI) }
 
-  def WS: Rule0 = rule { zeroOrMore(anyOf(" \t \n")) }
+  def WS: Rule0 = rule { quiet(zeroOrMore(anyOf(" \t \n"))) }
   def Variable: Rule1[String] = rule {
     capture(CharPredicate.LowerAlpha ~ zeroOrMore(CharPredicate.AlphaNum)) ~ WS
   }
@@ -35,7 +35,7 @@ class ParserExpr(val input: ParserInput, val allowNats: Boolean = false) extends
     CharPredicate.Digit
   }) ~ WS ~> ((str: String) => str.toInt)}
   def Natural: Rule1[Expr] = rule {
-    test(allowNats) ~ Digits ~> ((d: Int) => Nat(d))
+    test(extensions.useUInt) ~ Digits ~> ((d: Int) => Nat(d))
   }
 
   def AtomExpr: Rule1[Expr] = rule {
@@ -50,8 +50,20 @@ class ParserExpr(val input: ParserInput, val allowNats: Boolean = false) extends
     WS ~ zeroOrMore(Declaration) ~ EOI
   }
 
+  def WordsToRules(words: List[String]): List[Rule1[String]] = words.map{ w =>
+    rule { capture(str(w)) ~> { (a: String) => a } }
+  }
+
+  def Alternatives[A](rules: List[Rule1[A]]): Rule1[A] = rules.reduce((a, b) => rule(a | b))
+
+  def MatchAnyString(words: List[String]): Rule1[String] = Alternatives(WordsToRules(words))
+
+  def VariableDecl: Rule1[String] = rule {
+    !(MatchAnyString(reservedWords) ~ !CharPredicate.AlphaNum ~ WS) ~ Variable
+  }
+
   def Declaration: Rule1[Decl] = rule {
-    Variable ~ ":=" ~ WS ~ Expression ~ "." ~ WS ~> {(a: String, b: Expr) => Decl.Bind(a, b)}
+    VariableDecl ~ ":=" ~ WS ~ Expression ~ "." ~ WS ~> {(a: String, b: Expr) => Decl.Bind(a, b)}
   }
 
   def Expression: Rule1[Expr] = rule {

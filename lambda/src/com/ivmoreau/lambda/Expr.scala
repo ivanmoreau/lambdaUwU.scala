@@ -15,10 +15,15 @@ case class Extensions(
  useUInt: Boolean = false
 )
 
+def reservedWords(extensions: Extensions): List[String] =
+  def iff(b: Boolean, e: Map[String, Expr]): List[String] =
+    if b then e.keys.toList else List("\\")
+  iff(extensions.useUInt, natFnExtensions)
+
 extension (str: String)
   def evaluate(ctx: String)(extensions: Extensions): String =
-    val ctx_instance = new ParserExpr(ctx)
-    val input_instance = new ParserExpr(str, allowNats = extensions.useUInt)
+    val ctx_instance = new ParserExpr(ctx, extensions, reservedWords(extensions))
+    val input_instance = new ParserExpr(str, extensions, reservedWords(extensions))
     val ctx_n: Try[Seq[Decl]] = ctx_instance.Program.run()
     val input_n: Try[Expr] = input_instance.InputLine.run()
     println(s"$ctx")
