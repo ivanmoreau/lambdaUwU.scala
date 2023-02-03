@@ -3,6 +3,8 @@ package com.ivmoreau.lambda
 import scala.util.{Failure, Success, Try}
 import org.parboiled2.*
 
+import scala.annotation.tailrec
+
 val subZero: (Int, Int) => Int =
   case (n, m) => if n - m < 0 then 0 else n - m
 
@@ -54,6 +56,7 @@ def contextAdditions(extensions: Extensions): Map[String, Expr] =
 
 extension (str: String)
   def evaluate(ctx: String)(extensions: Extensions): String =
+    println(reservedWords(extensions))
     val ctx_instance = new ParserExpr(ctx, extensions, reservedWords(extensions))
     val input_instance = new ParserExpr(str, extensions, reservedWords(extensions))
     val ctx_n: Try[Seq[Decl]] = ctx_instance.Program.run()
@@ -78,7 +81,7 @@ extension (str: String)
         for
          a <- value.map(PrinterExpr(_, noIdent = true).print())
         yield println(a)
-        PrinterExpr(value.last).print()
+        PrinterExpr(value.head).print()
 
 enum Expr:
   case Free(val s: String)
@@ -153,12 +156,12 @@ case class Evaluator(expr: Expr, ctx: Map[String, Expr]):
       case None => Free(n)
     case n => n
 
-  val betaApply: Expr => List[Expr] =
-    case x =>
-      val u = betaB(x)
-      if x == u then
-        List(x)
-      else x :: betaApply(u)
+  @tailrec
+  private def betaApply(x: Expr, xs: List[Expr]): List[Expr] =
+    val u = betaB(x)
+    x == u match
+      case true => xs
+      case false => betaApply(u, u :: xs)
 
   val eval: () => List[Expr] =
-    case _ => betaApply(this.expr)
+    case _ => betaApply(this.expr, List())
