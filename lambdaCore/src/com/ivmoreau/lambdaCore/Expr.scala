@@ -1,4 +1,4 @@
-package com.ivmoreau.lambda
+package com.ivmoreau.lambdaCore
 
 import scala.util.{Failure, Success, Try}
 import org.parboiled2.*

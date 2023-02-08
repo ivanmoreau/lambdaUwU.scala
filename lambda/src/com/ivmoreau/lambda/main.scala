@@ -6,8 +6,9 @@ import org.scalajs.dom.{console, document}
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSGlobal, JSGlobalScope, JSImport}
-import com.ivmoreau.lambda.{Expr, ParserExpr, PrinterExpr}
-import com.ivmoreau.lambda.evaluate
+import com.ivmoreau.lambdaCore.{Expr, ParserExpr, PrinterExpr}
+import com.ivmoreau.lambdaCore.evaluate
+import com.ivmoreau.lambdaCore.Extensions
 
 val promptVar = Var(initial = "\\x -> x")
 val outVar = Var(initial = "n/a")

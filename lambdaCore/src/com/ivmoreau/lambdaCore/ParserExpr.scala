@@ -1,4 +1,4 @@
-package com.ivmoreau.lambda
+package com.ivmoreau.lambdaCore
 
 import Expr.*
 import cats.data.NonEmptyList
