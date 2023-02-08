@@ -10,7 +10,7 @@ class ParserExpr(val input: ParserInput, val extensions: Extensions, val reserve
       case x@Free(v) => s.get(v) match
         case None => x
         case Some(value) => Var(value)
-      case Abs(e) => Abs(unfree(e, s.map((s, i) => (s, i + 1))))
+      case Abs(t, e) => Abs(t, unfree(e, s.map((s, i) => (s, i + 1))))
       case App(l, r) => App(unfree(l, s), unfree(r, s))
       case var_ => var_
 
@@ -35,7 +35,7 @@ class ParserExpr(val input: ParserInput, val extensions: Extensions, val reserve
     CharPredicate.Digit
   }) ~ WS ~> ((str: String) => str.toInt)}
   def Natural: Rule1[Expr] = rule {
-    test(extensions.useNativeNats) ~ Digits ~> ((d: Int) => Nat(d))
+    test(extensions.useNativeNats) ~ Digits ~> ((d: Int) => DVal(d))
   }
 
   def AtomExpr: Rule1[Expr] = rule {
@@ -74,7 +74,7 @@ class ParserExpr(val input: ParserInput, val extensions: Extensions, val reserve
       val map = xs.foldRight((Map.empty[String, Int], 0))((s, t) => t match
         case (m, c) => (m + ((s, c)), c + 1)
       )._1
-      xs.foldLeft(unfree(b, map))((abs, str) => Abs(abs))
+      xs.foldLeft(unfree(b, map))((abs, str) => Abs(EType.Any, abs))
     }
   }
   def Application: Rule1[Expr] = rule {

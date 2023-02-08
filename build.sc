@@ -14,6 +14,7 @@ object lambda extends ScalaJSModule {
     ivy"co.fs2::fs2-core:3.4.0",
     ivy"co.fs2::fs2-io:3.4.0",
     ivy"com.raquo:laminar_sjs1_3:15.0.0-M4",
-    ivy"org.parboiled::parboiled::2.4.1"
+    ivy"org.parboiled::parboiled::2.4.1",
+    ivy"dev.zio::izumi-reflect::2.2.5"
   )
 }

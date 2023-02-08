@@ -4,33 +4,55 @@ import scala.util.{Failure, Success, Try}
 import org.parboiled2.*
 
 import scala.annotation.tailrec
+import izumi.reflect.Tag
+import izumi.reflect.macrortti.LightTypeTag
+
+import cats.Applicative.*
+import cats.implicits.*
+import cats.Functor
 
 val subZero: (Int, Int) => Int =
   case (n, m) => if n - m < 0 then 0 else n - m
 
+enum KType(ltt: LightTypeTag):
+  case KVal[A](val n: A)(implicit tt: Tag[A]) extends KType(tt.tag)
+  def tag: LightTypeTag = ltt
+  def getT[A](implicit tt: Tag[A]): Option[A] = this match
+    case KVal(n) if this.tag =:= Tag[A].tag => Some(n.asInstanceOf)
+    case otherwise => None
+    
+given fromIntToKType: Conversion[Int, KType] = KType.KVal(_)
+given fromBoolToKType: Conversion[Boolean, KType] = KType.KVal(_)
+  
 val natFnExtensions: Map[String, Expr] = Map.from(List(
-  Expr.FunNat("succ", (a: Int) => Expr.Nat(a + 1)),
-  Expr.FunNat("add", (a: Int) => Expr.FunNat("add$Partial", (b: Int) => Expr.Nat(a + b))),
-  Expr.FunNat("sub", (a: Int) => Expr.FunNat("sub$Partial", (b: Int) => Expr.Nat(subZero(a, b))))
+  Expr.DFun("succ", (a: KType) => a.getT.map { (a: Int) => Expr.DVal(a + 1) }),
+  Expr.DFun("add", (a: KType) => a.getT.map { (a: Int) => 
+    Expr.DFun("add$Partial", (b: KType) => b.getT.map { (b: Int) => Expr.DVal(a + b) } ) 
+  }),
+  Expr.DFun("sub", (a: KType) => a.getT.map { (a: Int) => 
+    Expr.DFun("sub$Partial", (b: KType) => b.getT.map { (b: Int) => Expr.DVal(subZero(a, b)) } ) 
+  })
 ).map {
-  case e@Expr.FunNat(n, f) => (n, e)
-  case _ => ("impossible", Expr.Nat(0))
+  case e@Expr.DFun(n, f) => (n, e)
+  case _ => ("impossible", Expr.DVal(0))
 })
 
 val boolFnExtensions: Map[String, Expr] = Map.from(List(
-  Expr.FunBool("if", (a: Boolean) => Expr.Abs(Expr.Abs({
+  Expr.DFun("if", (a: KType) => a.getT.map { (a: Boolean) => Expr.Abs(EType.Any, Expr.Abs(EType.Any, {
     if a then Expr.Var(1) else Expr.Var(0)
-  })))
+  }))})
 ).map {
-  case e@Expr.FunBool(n, f) => (n, e)
-  case _ => ("impossible", Expr.Nat(0))
-}) ++ Map.from(List(("true", Expr.Bool(true)), ("false", Expr.Bool(false))))
+  case e@Expr.DFun(n, f) => (n, e)
+  case _ => ("impossible", Expr.DVal(0))
+}) ++ Map.from(List(("true", Expr.DVal(true)), ("false", Expr.DVal(false))))
 
 val boolNatFnExtension: Map[String, Expr] = Map.from(List(
-  Expr.FunNat("eqN", (a: Int) => Expr.FunNat("eqN$Partial", (b: Int) => Expr.Bool(a == b)))
+  Expr.DFun("eqN", (a: KType) => a.getT.map { (a: Int) => 
+    Expr.DFun("eqN$Partial", (b: KType) => b.getT.map { (b: Int) => Expr.DVal(a == b) }) 
+  })
 ).map {
-  case e@Expr.FunNat(n, f) => (n, e)
-  case _ => ("impossible", Expr.Nat(0))
+  case e@Expr.DFun(n, f) => (n, e)
+  case _ => ("impossible", Expr.DVal(0))
 })
 
 case class Extensions(
@@ -83,15 +105,28 @@ extension (str: String)
         yield println(a)
         PrinterExpr(value.head).print()
 
+
+enum EKind:
+  case Star
+  case ~*>(val p: EKind, val e: EKind)
+
+enum EType:
+  case Free(val s: String)
+  case Var(val x: Int)
+  case Abs(val k: EKind, val t: EType)
+  case App(val l: EType, val r: EType)
+  case FAll(val k: EKind, val t: EType)
+  case ~+>(val p: EType, val e: EType)
+  case Any
+
 enum Expr:
   case Free(val s: String)
   case Var(val x: Int)
-  case Abs(val e: Expr)
+  case Abs(val t: EType, val e: Expr)
   case App(val l: Expr, val r: Expr)
-  case Nat(val n: Int)
-  case Bool(val n: Boolean)
-  case FunNat(val name: String, val f: Int => Expr)
-  case FunBool(val name: String, val f: Boolean => Expr)
+  case Lam(val k: EKind, val e: Expr)
+  case DVal(val d: KType)
+  case DFun(val name: String, val f: KType => Option[Expr])
 
 enum Decl:
   case Bind(val name: String, val expr: Expr)
@@ -106,12 +141,10 @@ case class PrinterExpr(expr: Expr, ident: Int = 0, noIdent: Boolean = false):
     val newExpr: String = expr match
       case Expr.Free(f) => f
       case Expr.Var(x) => x.toString
-      case Expr.Abs(e) => s"λ ->${identation._2}${this.copy(expr = e, ident = ident + 2).print()}"
+      case Expr.Abs(t, e) => s"λ ->${identation._2}${this.copy(expr = e, ident = ident + 2).print()}"
       case Expr.App(l, r) => s"(${this.copy(expr = l).print()} ${this.copy(expr = r).print()})"
-      case Expr.Nat(n) => n.toString
-      case Expr.Bool(n) => n.toString
-      case Expr.FunNat(n, _) => n
-      case Expr.FunBool(n, _) => n
+      case Expr.DVal(v) => v.toString()
+      case Expr.DFun(n, _) => n
     identation._1 + newExpr
 
 case class Evaluator(expr: Expr, ctx: Map[String, Expr]):
@@ -121,35 +154,35 @@ case class Evaluator(expr: Expr, ctx: Map[String, Expr]):
     case (_, _, Free(n)) => Free(n)
     case (d, c, Var(n)) => if c <= n then Var(n + d) else Var(n)
     case (d, c, App(l, r)) => App(shift(d, c, l), shift(d, c, r))
-    case (d, c, Abs(t)) => Abs(shift(d, c + 1, t))
+    case (d, c, Abs(t, e)) => Abs(t, shift(d, c + 1, e))
     case (_, _, t) => t
 
   val unshift: (Int, Int, Expr) => Expr =
     case (_, _, Free(n)) => Free(n)
     case (d, c, Var(n)) => if c <= n then Var(n - d) else Var(n)
     case (d, c, App(l, r)) => App(unshift(d, c, l), unshift(d, c, r))
-    case (d, c, Abs(t)) => Abs(unshift(d, c + 1, t))
+    case (d, c, Abs(t, e)) => Abs(t, unshift(d, c + 1, e))
     case (_, _, t) => t
 
   val substitution: (Expr, Expr, Int) => Expr =
     case (Free(v), _, _) => Free(v)
     case (Var(n), e, m) => if n == m then e else Var(n)
     case (App(e1, e2), e, m) => App(substitution(e1, e, m), substitution(e2, e, m))
-    case (Abs(e1), e, m) => Abs(substitution(e1, shift(1, 0, e), m + 1))
+    case (Abs(t, e1), e, m) => Abs(t, substitution(e1, shift(1, 0, e), m + 1))
     case (t, _, _) => t
 
   val betaB: Expr => Expr =
-    case App(Abs(t1), t2) => unshift(1, 0, substitution(t1, shift(1, 0, t2), 0))
-    case App(FunNat(n, f), Nat(v)) => f(v)
-    case App(FunNat(n, f), e) => App(FunNat(n, f), betaB(e))
-    case App(FunBool(n, f), Bool(v)) => f(v)
-    case App(FunBool(n, f), e) => App(FunBool(n, f), betaB(e))
+    case App(Abs(t, t1), t2) => unshift(1, 0, substitution(t1, shift(1, 0, t2), 0))
+    case App(DFun(n, f), DVal(v)) => f(v) match
+      case None => App(DFun(n, f), DVal(v))
+      case Some(value) => value
+    case App(DFun(n, f), e) => App(DFun(n, f), betaB(e))
     case App(Var(n), t2) => App(Var(n), betaB(t2))
     case App(Free(v), t2) => ctx.get(v) match
       case Some(value) => App(value, t2)
       case None => App(Free(v), t2)
     case App(t1, t2) => App(betaB(t1), t2)
-    case Abs(t) => Abs(betaB(t))
+    case Abs(t, e) => Abs(t, betaB(e))
     case Var(n) => Var(n)
     case Free(n) => ctx.get(n) match
       case Some(value) => value
