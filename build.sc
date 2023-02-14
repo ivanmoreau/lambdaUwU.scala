@@ -36,3 +36,16 @@ trait lambdaCore extends CrossSbtModule {
 object lambdaCoreJS extends lambdaCore with ScalaJSModule {
   override def scalaJSVersion = "1.11.0"
 }
+
+object lambdaCoreJVM extends lambdaCore with ScalaModule {
+  object tests extends Tests {
+    def ivyDeps = Agg(ivy"org.scalatest::scalatest:3.2.15",
+      ivy"org.scalatestplus::scalacheck-1-17:3.2.15.0"
+    )
+    def testFramework = "org.scalatest.tools.Framework"
+
+    override def sources = T.sources(
+      millSourcePath / "test",
+    )
+  }
+}

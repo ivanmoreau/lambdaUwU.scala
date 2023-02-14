@@ -51,7 +51,7 @@ class ParserExpr(val input: ParserInput, val extensions: Extensions, val reserve
   }
 
   def WordsToRules(words: List[String]): List[Rule1[String]] = words.map{ w =>
-    rule { capture(str(w)) ~> { (a: String) => println(s"cap $a"); a } }
+    rule { capture(str(w)) ~> { (a: String) => /*println(s"cap $a");*/ a } }
   }
 
   def Alternatives[A](rules: List[Rule1[A]]): Rule1[A] = rules.reduce((a, b) => rule(a | b))

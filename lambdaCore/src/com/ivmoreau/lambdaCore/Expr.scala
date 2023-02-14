@@ -14,23 +14,36 @@ import cats.Functor
 val subZero: (Int, Int) => Int =
   case (n, m) => if n - m < 0 then 0 else n - m
 
-enum KType(ltt: LightTypeTag):
-  case KVal[A](val n: A)(implicit tt: Tag[A]) extends KType(tt.tag)
-  def tag: LightTypeTag = ltt
-  def getT[A](implicit tt: Tag[A]): Option[A] = this match
-    case KVal(n) if this.tag =:= Tag[A].tag => Some(n.asInstanceOf)
+enum LType:
+  case LInt(val n: Int)
+  case LBoolean(val n: Boolean)
+  override def toString(): String = this match
+    case LInt(n) => n.toString()
+    case LBoolean(n) => n.toString()
+
+enum KType:
+  case KVal(val n: LType)
+  import LType.*
+  def getInt: Option[Int] = this match
+    case KVal(LInt(n)) => Some(n)
     case otherwise => None
+  def getBoolean: Option[Boolean] = this match
+    case KVal(LBoolean(n)) => Some(n)
+    case otherwise => None
+  override def toString(): String = this match
+    case KVal(n) => n.toString()
+  
     
-given fromIntToKType: Conversion[Int, KType] = KType.KVal(_)
-given fromBoolToKType: Conversion[Boolean, KType] = KType.KVal(_)
+given fromIntToKType: Conversion[Int, KType] = a => KType.KVal(LType.LInt(a))
+given fromBoolToKType: Conversion[Boolean, KType] = a => KType.KVal(LType.LBoolean(a))
   
 val natFnExtensions: Map[String, Expr] = Map.from(List(
-  Expr.DFun("succ", (a: KType) => a.getT.map { (a: Int) => Expr.DVal(a + 1) }),
-  Expr.DFun("add", (a: KType) => a.getT.map { (a: Int) => 
-    Expr.DFun("add$Partial", (b: KType) => b.getT.map { (b: Int) => Expr.DVal(a + b) } ) 
+  Expr.DFun("succ", (a: KType) => a.getInt.map { (a: Int) => Expr.DVal(a + 1) }),
+  Expr.DFun("add", (a: KType) => a.getInt.map { (a: Int) =>
+    Expr.DFun("add$Partial", (b: KType) => b.getInt.map { (b: Int) => Expr.DVal(a + b) } ) 
   }),
-  Expr.DFun("sub", (a: KType) => a.getT.map { (a: Int) => 
-    Expr.DFun("sub$Partial", (b: KType) => b.getT.map { (b: Int) => Expr.DVal(subZero(a, b)) } ) 
+  Expr.DFun("sub", (a: KType) => a.getInt.map { (a: Int) => 
+    Expr.DFun("sub$Partial", (b: KType) => b.getInt.map { (b: Int) => Expr.DVal(subZero(a, b)) } ) 
   })
 ).map {
   case e@Expr.DFun(n, f) => (n, e)
@@ -38,7 +51,7 @@ val natFnExtensions: Map[String, Expr] = Map.from(List(
 })
 
 val boolFnExtensions: Map[String, Expr] = Map.from(List(
-  Expr.DFun("if", (a: KType) => a.getT.map { (a: Boolean) => Expr.Abs(EType.Any, Expr.Abs(EType.Any, {
+  Expr.DFun("if", (a: KType) => a.getBoolean.map { (a: Boolean) => Expr.Abs(EType.Any, Expr.Abs(EType.Any, {
     if a then Expr.Var(1) else Expr.Var(0)
   }))})
 ).map {
@@ -47,8 +60,8 @@ val boolFnExtensions: Map[String, Expr] = Map.from(List(
 }) ++ Map.from(List(("true", Expr.DVal(true)), ("false", Expr.DVal(false))))
 
 val boolNatFnExtension: Map[String, Expr] = Map.from(List(
-  Expr.DFun("eqN", (a: KType) => a.getT.map { (a: Int) => 
-    Expr.DFun("eqN$Partial", (b: KType) => b.getT.map { (b: Int) => Expr.DVal(a == b) }) 
+  Expr.DFun("eqN", (a: KType) => a.getInt.map { (a: Int) => 
+    Expr.DFun("eqN$Partial", (b: KType) => b.getInt.map { (b: Int) => Expr.DVal(a == b) }) 
   })
 ).map {
   case e@Expr.DFun(n, f) => (n, e)
@@ -57,7 +70,8 @@ val boolNatFnExtension: Map[String, Expr] = Map.from(List(
 
 case class Extensions(
   useNativeNats: Boolean = false,
-  useNativeBools: Boolean = false
+  useNativeBools: Boolean = false,
+  sistemFOmega: Boolean = false
 )
 
 def reservedWords(extensions: Extensions): List[String] =
@@ -78,12 +92,12 @@ def contextAdditions(extensions: Extensions): Map[String, Expr] =
 
 extension (str: String)
   def evaluate(ctx: String)(extensions: Extensions): String =
-    println(reservedWords(extensions))
+    //println(reservedWords(extensions))
     val ctx_instance = new ParserExpr(ctx, extensions, reservedWords(extensions))
     val input_instance = new ParserExpr(str, extensions, reservedWords(extensions))
     val ctx_n: Try[Seq[Decl]] = ctx_instance.Program.run()
     val input_n: Try[Expr] = input_instance.InputLine.run()
-    println(s"$ctx")
+    //println(s"$ctx")
     def result[A, B](v: Try[A])(f: A => B)(i: ParserExpr): Either[String, B] = v match
       case Success(value) => Right(f(value))
       case Failure(exception: ParseError) => Left(i.formatError(exception))
@@ -91,7 +105,7 @@ extension (str: String)
       case Decl.Bind(s, e) => (s, e)
     val a = result(ctx_n)(_.map(decl2Tuple).toMap)(ctx_instance)
     val b = result(input_n)(identity)(input_instance)
-    println(b)
+    //println(b)
     val almost =
       for
         iExpr <- b
@@ -100,9 +114,9 @@ extension (str: String)
     almost match
       case Left(value) => value
       case Right(value) =>
-        for
+        /*for
          a <- value.map(PrinterExpr(_, noIdent = true).print())
-        yield println(a)
+        yield println(a)*/
         PrinterExpr(value.head).print()
 
 
