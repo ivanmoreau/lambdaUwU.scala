@@ -76,11 +76,11 @@ case class Extensions(
 
 def reservedWords(extensions: Extensions): List[String] =
   def iff(b: Boolean, e: Map[String, Expr]): List[String] =
-    if b then e.keys.toList else List("\\")
+    if b then e.keys.toList else List("")
   val natE = iff(extensions.useNativeNats, natFnExtensions)
   val boolE = iff(extensions.useNativeBools, boolFnExtensions)
   val natBoolE = iff(extensions.useNativeBools && extensions.useNativeNats, boolNatFnExtension)
-  natE ++ boolE ++ natBoolE
+  List("\\") ++ natE ++ boolE ++ natBoolE
 
 def contextAdditions(extensions: Extensions): Map[String, Expr] =
   def iff(b: Boolean, e: Map[String, Expr]): Map[String, Expr] =
@@ -207,7 +207,7 @@ case class Evaluator(expr: Expr, ctx: Map[String, Expr]):
   private def betaApply(x: Expr, xs: List[Expr]): List[Expr] =
     val u = betaB(x)
     x == u match
-      case true => xs
+      case true => if xs.isEmpty then x :: xs else xs
       case false => betaApply(u, u :: xs)
 
   val eval: () => List[Expr] =

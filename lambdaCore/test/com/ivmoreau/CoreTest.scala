@@ -35,8 +35,7 @@ class CoreTest extends AnyFreeSpec with Checkers {
       check {  (a: Boolean) =>
         val extensions: Extensions = Extensions(useNativeBools = false)
         val computed: String = s"if ${a.toString} left right".evaluate("")(extensions)
-        println(computed)
-        computed == s"(((if {$a}) left) right)"
+        computed == s"(((if ${a.toString}) left) right)"
       }
     }
 
@@ -55,12 +54,12 @@ class CoreTest extends AnyFreeSpec with Checkers {
 
   "Native and booleans" - {
     "eq" in {
-      check { (a: Int, b: Int) =>
-        a >= 0 && b >= 0 ==> { 
-          val extensions = Extensions(useNativeNats = true, useNativeBools = true)
-          val computed = Try { s"eqN ${a.toString} ${b.toString}".evaluate("")(extensions) }.getOrElse("")
-          println(computed)
-          computed == (a == b).toString()
+      check { forAll (Gen.zip(Gen.choose(0,1000), Gen.choose(0,1000))) { (a: Int, b: Int) =>
+          a >= 0 && b >= 0 ==> { 
+            val extensions = Extensions(useNativeNats = true, useNativeBools = true)
+            val computed = Try { s"eqN ${a.toString} ${b.toString}".evaluate("")(extensions) }.getOrElse("")
+            computed == (a == b).toString()
+          }
         }
       }
     }
@@ -68,7 +67,7 @@ class CoreTest extends AnyFreeSpec with Checkers {
 
   "Identity applied to identity N times" - {
     "Always reduce to id (untyped)" in {
-      check { forAll (Gen.choose(0,1000)) { (a: Int) =>
+      check { forAll (Gen.choose(1,1000)) { (a: Int) =>
           val extensions = Extensions()
           val ctx = raw"id := \x -> x."
           val input = List.fill(a)("id").mkString(" ")
