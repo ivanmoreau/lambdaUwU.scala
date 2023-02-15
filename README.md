@@ -1,4 +1,4 @@
-# LambdaMangoUwU
+# LambdaMangoUwU (uncomplete pet project)
 
 This is an interpreter for the Untyped Lambda Calculus and (if wanted)
 System F-Omega. The typed mode can (in the future lol) be enabled at
@@ -100,4 +100,19 @@ Kind :=
   | Kind "~>" Kind
 ```
 
+## Running
 
+Only the frontend web (Scala JS) is working. That is:
+
+```
+mill -w lambda.fullLinkJS
+# or
+mill -w lambda.fastLinkJS
+```
+
+But tests run on the JVM:
+
+```
+mill -w lambdaCoreJVM.tests
+```
+We should have a JVM/LLVM frontend in the near future.
