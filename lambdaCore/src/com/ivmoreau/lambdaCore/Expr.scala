@@ -71,7 +71,7 @@ val boolNatFnExtension: Map[String, Expr] = Map.from(List(
 case class Extensions(
   useNativeNats: Boolean = false,
   useNativeBools: Boolean = false,
-  sistemFOmega: Boolean = false
+  systemFOmega: Boolean = false
 )
 
 def reservedWords(extensions: Extensions): List[String] =
@@ -125,10 +125,10 @@ enum EKind:
   case ~*>(val p: EKind, val e: EKind)
 
 enum EType:
-  case Free(val s: String)
-  case Var(val x: Int)
-  case Abs(val k: EKind, val t: EType)
-  case App(val l: EType, val r: EType)
+  case TFree(val s: String)
+  case TVar(val x: Int)
+  case TAbs(val k: EKind, val t: EType)
+  case TApp(val l: EType, val r: EType)
   case FAll(val k: EKind, val t: EType)
   case ~+>(val p: EType, val e: EType)
   case Any
@@ -144,6 +144,7 @@ enum Expr:
 
 enum Decl:
   case Bind(val name: String, val expr: Expr)
+  case BindT(val name: String, val ttype: EType)
 
 case class PrinterExpr(expr: Expr, ident: Int = 0, noIdent: Boolean = false):
   def print(): String =

@@ -77,4 +77,19 @@ class CoreTest extends AnyFreeSpec with Checkers {
       }
     }
   }
+
+  "Typed Lambda" - {
+
+    import Expr.*
+    import EType.*
+    import EKind.*
+
+    "Can be parsed ~ 0" in {
+      val function0 = "#A: *, B: * -> \\x: (A => B) -> x"
+      val expected = Lam(Star, Lam(Star, Abs(~+>(TVar(1), TVar(0)), Var(0))))
+      val extensions = Extensions(systemFOmega = true)
+      val Right(parsed) = ParserExpr(function0, extensions, List("\\")).InputLine.run().toEither : @unchecked
+      true
+    }
+  }
 }
