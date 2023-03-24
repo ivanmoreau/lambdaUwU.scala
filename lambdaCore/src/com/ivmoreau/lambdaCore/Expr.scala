@@ -95,16 +95,19 @@ extension (str: String)
     //println(reservedWords(extensions))
     val ctx_instance = new ParserExpr(ctx, extensions, reservedWords(extensions))
     val input_instance = new ParserExpr(str, extensions, reservedWords(extensions))
-    val ctx_n: Try[Seq[Decl]] = ctx_instance.Program.run()
-    val input_n: Try[Expr] = input_instance.InputLine.run()
+    val input_n: Try[Expr] = input_instance.parseInput
+    print(s"$input_n")
+    println("This is the context")
+    val ctx_n: Try[Seq[Decl]] = ctx_instance.parseContext
+    print(s"$ctx_n")
     //println(s"$ctx")
-    def result[A, B](v: Try[A])(f: A => B)(i: ParserExpr): Either[String, B] = v match
+    def result[A, B](v: Try[A])(f: A => B): Either[String, B] = v match
       case Success(value) => Right(f(value))
-      case Failure(exception: ParseError) => Left(i.formatError(exception))
+      case Failure(exception) => Left( s"Parse error: ${exception.getMessage}" )
     val decl2Tuple: Decl => (String, Expr) =
       case Decl.Bind(s, e) => (s, e)
-    val a = result(ctx_n)(_.map(decl2Tuple).toMap)(ctx_instance)
-    val b = result(input_n)(identity)(input_instance)
+    val a = result(ctx_n)(_.map(decl2Tuple).toMap)
+    val b = result(input_n)(identity)
     //println(b)
     val almost =
       for

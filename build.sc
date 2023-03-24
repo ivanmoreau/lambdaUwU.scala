@@ -24,7 +24,8 @@ trait lambdaCore extends CrossSbtModule {
     ivy"co.fs2::fs2-core:3.4.0",
     ivy"co.fs2::fs2-io:3.4.0",
     ivy"org.parboiled::parboiled::2.4.1",
-    ivy"dev.zio::izumi-reflect::2.2.5"
+    ivy"dev.zio::izumi-reflect::2.2.5",
+    ivy"org.typelevel::cats-parse::0.3.7"
   )
 
   override def millSourcePath = build.millSourcePath / "lambdaCore"
