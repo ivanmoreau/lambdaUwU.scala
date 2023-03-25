@@ -1,15 +1,18 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
-  outputs = (inputs:
-  let
-    darwinPkgs = inputs.nixpkgs.legacyPackages.aarch64-darwin;
-  in
-  {
-    devShells.aarch64-darwin.default = with darwinPkgs; mkShell {
-      buildInputs = [ mill ];
+  outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = nixpkgs.lib.systems.flakeExposed;
+      perSystem = { pkgs, lib, config, system, ... }: {
+        devShells.default = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              mill
+            ];
+          };
+      };
     };
-  });
 }
