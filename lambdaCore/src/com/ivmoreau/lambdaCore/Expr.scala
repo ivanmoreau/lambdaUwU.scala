@@ -96,10 +96,9 @@ extension (str: String)
     val ctx_instance = new ParserExpr(ctx, extensions, reservedWords(extensions))
     val input_instance = new ParserExpr(str, extensions, reservedWords(extensions))
     val input_n: Try[Expr] = input_instance.parseInput
-    print(s"$input_n")
-    println("This is the context")
+    if input_n.isFailure then return s"Parse error: ${input_n.failed.get.getMessage}"
     val ctx_n: Try[Seq[Decl]] = ctx_instance.parseContext
-    print(s"$ctx_n")
+    if ctx_n.isFailure then return s"Parse error: ${ctx_n.failed.get.getMessage}"
     //println(s"$ctx")
     def result[A, B](v: Try[A])(f: A => B): Either[String, B] = v match
       case Success(value) => Right(f(value))

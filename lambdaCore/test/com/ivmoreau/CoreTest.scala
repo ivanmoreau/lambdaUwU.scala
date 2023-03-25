@@ -9,22 +9,28 @@ import org.scalacheck.Gen
 class CoreTest extends AnyFreeSpec with Checkers {
   "Native natural expressions" - {
     "nNats disabled" in {
-      check {  (a: Int, b: Int) =>
-        (a >= 0 && b >= 0) ==> {
-          val extensions: Extensions = Extensions(useNativeNats = false)
-          val computed: String = s"add ${a.toString} ${b.toString}".evaluate("")(extensions)
-          computed.contains("Invalid input")
+      check {
+        forAll(Gen.zip(Gen.posNum[Int], Gen.posNum[Int])) { (a: Int, b: Int) =>
+          (a >= 0 && b >= 0) ==> {
+            val extensions: Extensions = Extensions(useNativeNats = false)
+            val computed: String =
+              s"add ${a.toString} ${b.toString}".evaluate("")(extensions)
+            computed.contains("Parse error: Error(")
+          }
         }
       }
     }
 
     "nNats enabled" in {
-      check { (a: Int, b: Int) =>
-        (a >= 0 && b >= 0) ==> {
-          val extensions: Extensions = Extensions(useNativeNats = true)
-          val computed = s"add ${a.toString} ${b.toString}".evaluate("")(extensions)
-          val expected = (a + b).toString
-          computed == expected
+      check {
+        forAll(Gen.zip(Gen.posNum[Int], Gen.posNum[Int])) { (a: Int, b: Int) =>
+          (a >= 0 && b >= 0) ==> {
+            val extensions: Extensions = Extensions(useNativeNats = true)
+            val computed =
+              s"add ${a.toString} ${b.toString}".evaluate("")(extensions)
+            val expected = (a + b).toString
+            computed == expected
+          }
         }
       }
     }
@@ -32,21 +38,23 @@ class CoreTest extends AnyFreeSpec with Checkers {
 
   "Native booleans expressions" - {
     "nBools disabled" in {
-      check {  (a: Boolean) =>
+      check { (a: Boolean) =>
         val extensions: Extensions = Extensions(useNativeBools = false)
-        val computed: String = s"if ${a.toString} left right".evaluate("")(extensions)
+        val computed: String =
+          s"if ${a.toString} left right".evaluate("")(extensions)
         computed == s"(((if ${a.toString}) left) right)"
       }
     }
 
     "nBools enabled" in {
-      check {  (a: Boolean) =>
+      check { (a: Boolean) =>
         val extensions: Extensions = Extensions(useNativeBools = true)
-        val computed: String = s"if ${a.toString} left right".evaluate("")(extensions)
+        val computed: String =
+          s"if ${a.toString} left right".evaluate("")(extensions)
         computed match
-          case "left" if a == true => true
+          case "left" if a == true   => true
           case "right" if a == false => true
-          case otherwise => false
+          case otherwise             => false
       }
 
     }
@@ -54,12 +62,17 @@ class CoreTest extends AnyFreeSpec with Checkers {
 
   "Native and booleans" - {
     "eq" in {
-      check { forAll (Gen.zip(Gen.choose(0,1000), Gen.choose(0,1000))) { (a: Int, b: Int) =>
-          a >= 0 && b >= 0 ==> { 
-            val extensions = Extensions(useNativeNats = true, useNativeBools = true)
-            val computed = Try { s"eqN ${a.toString} ${b.toString}".evaluate("")(extensions) }.getOrElse("")
-            computed == (a == b).toString()
-          }
+      check {
+        forAll(Gen.zip(Gen.choose(0, 1000), Gen.choose(0, 1000))) {
+          (a: Int, b: Int) =>
+            a >= 0 && b >= 0 ==> {
+              val extensions =
+                Extensions(useNativeNats = true, useNativeBools = true)
+              val computed = Try {
+                s"eqN ${a.toString} ${b.toString}".evaluate("")(extensions)
+              }.getOrElse("")
+              computed == (a == b).toString()
+            }
         }
       }
     }
@@ -67,13 +80,14 @@ class CoreTest extends AnyFreeSpec with Checkers {
 
   "Identity applied to identity N times" - {
     "Always reduce to id (untyped)" in {
-      check { forAll (Gen.choose(1,1000)) { (a: Int) =>
+      check {
+        forAll(Gen.choose(1, 1000)) { (a: Int) =>
           val extensions = Extensions()
           val ctx = raw"id := \x -> x."
           val input = List.fill(a)("id").mkString(" ")
           val computed = input.evaluate(ctx)(extensions)
           computed == "id".evaluate(ctx)(extensions)
-        } 
+        }
       }
     }
   }
@@ -88,7 +102,11 @@ class CoreTest extends AnyFreeSpec with Checkers {
       val function0 = "#A: *, B: * -> \\x: (A => B) -> x"
       val expected = Lam(Star, Lam(Star, Abs(~+>(TVar(1), TVar(0)), Var(0))))
       val extensions = Extensions(systemFOmega = true)
-      val Right(parsed) = ParserExpr(function0, extensions, List("\\")).parseInput.toEither : @unchecked
+      val Right(parsed) = ParserExpr(
+        function0,
+        extensions,
+        List("\\")
+      ).parseInput.toEither: @unchecked
       true
     }
   }
