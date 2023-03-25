@@ -8,6 +8,31 @@ import cats.instances.string
 import cats.syntax.all.*
 import scala.util.Try
 
+/** Gramar
+ * Type :=
+  | TypeVariable -- Type variable (uppercase)
+  | Type "=>" Type -- Arrow type.
+  | "(" Type ")"
+  | Type Type -- Type application.
+  | Lambda TypeVariable ":" Kind "->" Type -- Type Abstraction.
+  | "forall" TypeVariable ":" Kind "."  Type -- Universal type quantification.
+
+Expression :=
+  | "#" TypeVariable ":" Kind "->" Expression -- Type abstraction.
+  | TermVariable -- Variable (initial lowercase).
+  | Lambda TermVariable ":" Type "->" Expression -- Abstraction.
+  | Expression Expression -- Application.
+  | "(" Expression ")"
+
+Declaration := 
+  | "let" TermVariable ":=" Expression "." Declaration*
+  | "type" TypeVariable ":=" Type "." Declaration*
+  | EndOfInput
+
+Kind :=
+  | "*" -- Universe.
+  | Kind "~>" Kind
+  */
 class ParserExpr(val input: String, val extensions: Extensions, val reservedWords: List[String] = List("\\")):
 
   def parseInput: Try[Expr] =
@@ -24,7 +49,7 @@ class ParserExpr(val input: String, val extensions: Extensions, val reservedWord
 
   lazy val context: P0[Seq[Decl]] = (declaration <* P.end)
 
-  lazy val declaration: P0[Seq[Decl]] = expressionDecl.repSep0(P.char(';').surroundedBy(whitespace)).map(_.toList.toSeq)
+  lazy val declaration: P0[Seq[Decl]] = expressionDecl.repSep0(dot).map(_.toList.toSeq)
 
   lazy val expressionDecl: P[Decl] = (variableLower.filter(!reservedWords.contains(_)) <* definedAs, expression).mapN(Decl.Bind(_,_))
   
@@ -40,6 +65,13 @@ class ParserExpr(val input: String, val extensions: Extensions, val reservedWord
   lazy val open_parentheses: P[Unit] = P.char('(') <* whitespace
   lazy val close_parentheses: P[Unit] = P.char(')') <* whitespace
   lazy val digits: P[Int] = Rfc5234.digit.rep.string.mapFilter(s => Try(s.toInt).toOption) <* whitespace
+  lazy val uni = P.char('*') <* whitespace
+  lazy val arrowK = P.string("~>") <* whitespace
+  lazy val arrowT = P.string("=>") <* whitespace
+  lazy val forall = P.string("forall") <* whitespace
+  lazy val typeAbstraction = P.string("#") <* whitespace
+  lazy val arrow = P.string("->") <* whitespace
+
 
   lazy val naturals: P[Expr] = extensions.useNativeNats match
     case false => P.failWith("Naturals are not enabled")
@@ -49,19 +81,28 @@ class ParserExpr(val input: String, val extensions: Extensions, val reservedWord
 
   lazy val parameters: P[Seq[String]] = variableLower.repSep(comma.surroundedBy(whitespace)).map(_.toList.toSeq) <* whitespace
 
-  /* EXAMPLE
-  --------- GRAMAR λ ---------
+  lazy val kind: P[EKind] = P.recursive[EKind] { rec =>
+    val universe: P[EKind] = uni.map(_ => EKind.Star)
+    val arrow: P[EKind] = (universe, arrowK, rec).mapN { (a, _, b) => EKind.~*>(a, b) }
 
-expr = whiteSpaces >> (abstraction <|> application)
-abstraction = try (lambda (sepBy1 isVar_ comma) period (try expr))
-application = (chainl1 (abstraction <|> variable <|> (open_parentheses expr close_parentheses)) (do return (\x₀ -> \x₁ -> App x₀ x₁)))
+    universe | arrow
+  }
 
--- λn,sd,ds,s.ss (sd df) --> Right (λn.(λsd.(λds.(λs.(ss (sd df))))))
-*/
+  lazy val `type`: P[EType] = P.recursive[EType] { rec =>
+    val variable: P[EType] = variableUpper.map(EType.TFree(_))
+    val arrow: P[EType] = (rec, arrowT, rec).mapN { (a, _, b) => EType.~+>(a, b) }
+    val abstraction: P[EType] = (lambda *> variableUpper <* ofType, kind, arrow, rec).mapN { (_, a, _, b) => EType.TAbs(a, b) }
+    val forallP: P[EType] = (forall *> variableUpper <* ofType, kind, rec).mapN { (v, k, a) => ??? }
+    val application: P[EType] = (abstraction | forallP | variable.backtrack | rec.between(open_parentheses, close_parentheses)).rep.map {
+      case NonEmptyList(head, tail) => 
+        tail.foldLeft(head) { (acc, expr) => EType.TApp(acc, expr) }
+    }
 
-  /* NEW CODE based on the Haskell code */
+    arrow.backtrack | abstraction | forallP | application
+  }
+
   lazy val expression: P[Expr] = P.recursive[Expr] { rec =>
-    val abstraction: P[Expr] = (lambda.backtrack *> parameters <* dot, rec.backtrack).mapN { (params, body) =>
+    val abstraction: P[Expr] = (lambda.backtrack *> parameters <* arrow, rec.backtrack).mapN { (params, body) =>
       params.foldRight(body) { (param, body) => Abs(EType.Any, body) }
     }
 
