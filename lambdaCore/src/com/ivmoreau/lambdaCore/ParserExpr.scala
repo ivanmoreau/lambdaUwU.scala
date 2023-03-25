@@ -84,26 +84,27 @@ class ParserExpr(
 
   lazy val variableExpr: P[Expr] = variableLower.map(Free(_))
 
-  lazy val parameters: P[Seq[(String, Option[EType])]] = 
+  lazy val parameters: P[Seq[(String, Option[EType])]] =
     if !extensions.systemFOmega then
       variableLower
       .repSep(comma.surroundedBy(whitespace))
       .map(_.toList.toSeq.map((_, None))) <* whitespace
     else
       (variableLower <* ofType, `type`)
-        .mapN { (a, b) => 
+        .mapN { (a, b) =>
           println(s"param: $a, $b")
           (a, Some(b)) }
         .repSep(comma.surroundedBy(whitespace))
         .map(_.toList.toSeq) <* whitespace
 
-  lazy val parametersT: P[Seq[(String, EType)]] = 
-    (variableUpper <* ofType, `type`)
-      .mapN { (a, b) => 
+  lazy val parametersT: P[Seq[(String, EKind)]] =
+    (variableUpper <* ofType, kind)
+      .mapN { (a, b) =>
         println(s"param: $a, $b")
         (a, b) }
       .repSep(comma.surroundedBy(whitespace))
       .map(_.toList.toSeq) <* whitespace
+      .withContext("parametersT")
 
   lazy val kind: P[EKind] = P.recursive[EKind] { rec =>
     val universe: P[EKind] = uni.map(_ => EKind.Star)
@@ -116,15 +117,15 @@ class ParserExpr(
 
   lazy val `type`: P[EType] = P.recursive[EType] { rec =>
     val variable: P[EType] = variableUpper.map(EType.TFree(_))
-    val arrow: P[EType] = (rec, arrowT, rec).mapN { (a, _, b) =>
-      EType.~+>(a, b)
-    }
+
     val abstraction: P[EType] =
       (lambda *> variableUpper <* ofType, kind, arrow, rec).mapN {
         (_, a, _, b) => EType.TAbs(a, b)
       }
+
     val forallP: P[EType] =
       (forall *> variableUpper <* ofType, kind, rec).mapN { (v, k, a) => ??? }
+
     val application: P[EType] =
       (abstraction | forallP | variable.backtrack | rec.between(
         open_parentheses,
@@ -133,20 +134,27 @@ class ParserExpr(
         tail.foldLeft(head) { (acc, expr) => EType.TApp(acc, expr) }
       }
 
-    arrow.backtrack | abstraction | forallP | application
+    val arrowP: P[EType] = (application, arrowT, rec).mapN { (a, _, b) =>
+      EType.~+>(a, b)
+    }
+
+    arrowP.backtrack | abstraction | forallP | application
   }
 
   lazy val expression: P[Expr] = P.recursive[Expr] { rec =>
     lazy val abstraction: P[Expr] =
       (lambda.backtrack *> parameters <* arrow, rec.backtrack).mapN {
         (params, body) =>
-          params.foldRight(body) { (param, body) => Abs(EType.Any, body) }
+          params.foldRight(body) {
+            case ((_, Some(param)), body) => Abs(param, body)
+            case ((_, None), body) => Abs(EType.Any, body)
+          }
       }.withContext("abstraction")
 
     lazy val typeAbstraction: P[Expr] =
       (lambdaT *> parametersT <* arrow, rec.backtrack).mapN {
         (params, body) =>
-          params.foldRight(body) { (param, body) => Abs(EType.Any, body) }
+          params.foldRight(body) { case ((_, param), body) => Lam(param, body) }
       }.withContext("typeAbstraction")
 
     lazy val atom: P[Expr] = variableExpr | naturals

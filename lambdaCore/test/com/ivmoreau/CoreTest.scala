@@ -1,8 +1,10 @@
+import cats.implicits.*
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatestplus.scalacheck.Checkers
 import org.scalacheck.Arbitrary.*
 import org.scalacheck.Prop.*
 import com.ivmoreau.lambdaCore.*
+
 import scala.util.Try
 import org.scalacheck.Gen
 
@@ -104,11 +106,14 @@ class CoreTest extends AnyFreeSpec with Checkers {
       val function0 = "#A: *, B: * -> \\x: (A => B) -> x"
       val expected = Lam(Star, Lam(Star, Abs(~+>(TVar(1), TVar(0)), Var(0))))
       val extensions = Extensions(systemFOmega = true)
-      val Right(parsed) = ParserExpr(
+      val parsed = ParserExpr(
         function0,
         extensions,
         List("\\")
       ).expression.parse(function0)
+      parsed match
+        case Left(err) => println(show"$err")
+        case Right(parsed) => println(parsed)
       true
     }
   }
