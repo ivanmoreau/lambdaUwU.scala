@@ -26,7 +26,7 @@ class ParserExpr(val input: String, val extensions: Extensions, val reservedWord
 
   lazy val declaration: P0[Seq[Decl]] = expressionDecl.repSep0(P.char(';').surroundedBy(whitespace)).map(_.toList.toSeq)
 
-  lazy val expressionDecl: P[Decl] = (variableLower <* definedAs, expression).mapN(Decl.Bind(_,_))
+  lazy val expressionDecl: P[Decl] = (variableLower.filter(!reservedWords.contains(_)) <* definedAs, expression).mapN(Decl.Bind(_,_))
   
   lazy val variableLower: P[String] = (P.charWhere(_.isLower) ~ P.charWhere(_.isLetterOrDigit).rep0).string <* whitespace
   lazy val variableUpper: P[String] = (P.charWhere(_.isUpper) ~ P.charWhere(_.isLetterOrDigit).rep0).string <* whitespace
