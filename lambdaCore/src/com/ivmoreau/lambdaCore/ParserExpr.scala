@@ -36,13 +36,13 @@ class ParserExpr(
   def parseInput: Try[Expr] =
     val either = expression.parseAll(input) match
       case Right(value) => Right(value)
-      case Left(error)  => Left(new Exception(show"$error"))
+      case Left(error)  => Left(new Exception(error.toString))
     either.toTry
 
   def parseContext: Try[Seq[Decl]] =
     val either = context.parseAll(input) match
       case Right(value) => Right(value)
-      case Left(error)  => Left(new Exception(show"$error"))
+      case Left(error)  => Left(new Exception(error.toString))
     either.toTry
 
   lazy val context: P0[Seq[Decl]] = (declaration <* P.end)
