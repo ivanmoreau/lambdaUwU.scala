@@ -1,6 +1,7 @@
 package com.ivmoreau.lambdaCore
 
 import Expr.*
+import cats.implicits.*
 import cats.data.NonEmptyList
 import mouse.all.*
 import cats.parse.{Parser => P, Parser0 => P0, *}
@@ -35,13 +36,13 @@ class ParserExpr(
   def parseInput: Try[Expr] =
     val either = expression.parseAll(input) match
       case Right(value) => Right(value)
-      case Left(error)  => Left(new Exception(error.toString))
+      case Left(error)  => Left(new Exception(show"$error"))
     either.toTry
 
   def parseContext: Try[Seq[Decl]] =
     val either = context.parseAll(input) match
       case Right(value) => Right(value)
-      case Left(error)  => Left(new Exception(error.toString))
+      case Left(error)  => Left(new Exception(show"$error"))
     either.toTry
 
   lazy val context: P0[Seq[Decl]] = (declaration <* P.end)
@@ -85,13 +86,10 @@ class ParserExpr(
 
   lazy val parameters: P[Seq[(String, Option[EType])]] = 
     if !extensions.systemFOmega then
-      println("Extension: " + extensions.systemFOmega)
       variableLower
       .repSep(comma.surroundedBy(whitespace))
       .map(_.toList.toSeq.map((_, None))) <* whitespace
     else
-      println("system F omega")
-      println("Extension: " + extensions.systemFOmega)
       (variableLower <* ofType, `type`)
         .mapN { (a, b) => 
           println(s"param: $a, $b")
@@ -100,8 +98,6 @@ class ParserExpr(
         .map(_.toList.toSeq) <* whitespace
 
   lazy val parametersT: P[Seq[(String, EType)]] = 
-    println("system F omega")
-    println("Extension: " + extensions.systemFOmega)
     (variableUpper <* ofType, `type`)
       .mapN { (a, b) => 
         println(s"param: $a, $b")
@@ -141,26 +137,26 @@ class ParserExpr(
   }
 
   lazy val expression: P[Expr] = P.recursive[Expr] { rec =>
-    val abstraction: P[Expr] =
+    lazy val abstraction: P[Expr] =
       (lambda.backtrack *> parameters <* arrow, rec.backtrack).mapN {
         (params, body) =>
           params.foldRight(body) { (param, body) => Abs(EType.Any, body) }
-      }
+      }.withContext("abstraction")
 
-    val typeAbstraction: P[Expr] =
+    lazy val typeAbstraction: P[Expr] =
       (lambdaT *> parametersT <* arrow, rec.backtrack).mapN {
         (params, body) =>
           params.foldRight(body) { (param, body) => Abs(EType.Any, body) }
-      }
+      }.withContext("typeAbstraction")
 
-    val atom: P[Expr] = variableExpr | naturals
+    lazy val atom: P[Expr] = variableExpr | naturals
 
     val application: P[Expr] = (abstraction | typeAbstraction | atom.backtrack | rec.between(
       open_parentheses,
       close_parentheses
     )).rep.map { case NonEmptyList(head, tail) =>
       tail.foldLeft(head) { (acc, expr) => App(acc, expr) }
-    }
+    }.withContext("application")
 
     abstraction | typeAbstraction | application
   }

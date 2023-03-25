@@ -6,6 +6,7 @@ import com.ivmoreau.lambdaCore.*
 import scala.util.Try
 import org.scalacheck.Gen
 
+
 class CoreTest extends AnyFreeSpec with Checkers {
   "Native natural expressions" - {
     "nNats disabled" in {
@@ -28,6 +29,7 @@ class CoreTest extends AnyFreeSpec with Checkers {
             val extensions: Extensions = Extensions(useNativeNats = true)
             val computed =
               s"add ${a.toString} ${b.toString}".evaluate("")(extensions)
+            println(computed)
             val expected = (a + b).toString
             computed == expected
           }

@@ -9,7 +9,6 @@ import izumi.reflect.macrortti.LightTypeTag
 
 import cats.Applicative.*
 import cats.implicits.*
-import cats.Functor
 
 val subZero: (Int, Int) => Int =
   case (n, m) => if n - m < 0 then 0 else n - m
