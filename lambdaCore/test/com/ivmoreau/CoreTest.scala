@@ -106,7 +106,7 @@ class CoreTest extends AnyFreeSpec with Checkers {
         function0,
         extensions,
         List("\\")
-      ).parseInput.toEither: @unchecked
+      ).expression.parse(function0)
       true
     }
   }

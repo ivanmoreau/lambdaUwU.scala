@@ -8,13 +8,7 @@ import cats.instances.string
 import cats.syntax.all.*
 import scala.util.Try
 
-/** Gramar Type :=
-  * \| TypeVariable -- Type variable (uppercase)
-  * \| Type "=>" Type -- Arrow type.
-  * \| "(" Type ")"
-  * \| Type Type -- Type application.
-  * \| Lambda TypeVariable ":" Kind "->" Type -- Type Abstraction.
-  * \| "forall" TypeVariable ":" Kind "." Type -- Universal type quantification.
+/** Gramar
   *
   * Expression :=
   * \| "#" TypeVariable ":" Kind "->" Expression -- Type abstraction.
@@ -80,7 +74,7 @@ class ParserExpr(
   lazy val arrowK = P.string("~>") <* whitespace
   lazy val arrowT = P.string("=>") <* whitespace
   lazy val forall = P.string("forall") <* whitespace
-  lazy val typeAbstraction = P.string("#") <* whitespace
+  lazy val lambdaT = P.string("#") <* whitespace
   lazy val arrow = P.string("->") <* whitespace
 
   lazy val naturals: P[Expr] = extensions.useNativeNats match
@@ -89,9 +83,31 @@ class ParserExpr(
 
   lazy val variableExpr: P[Expr] = variableLower.map(Free(_))
 
-  lazy val parameters: P[Seq[String]] = variableLower
-    .repSep(comma.surroundedBy(whitespace))
-    .map(_.toList.toSeq) <* whitespace
+  lazy val parameters: P[Seq[(String, Option[EType])]] = 
+    if !extensions.systemFOmega then
+      println("Extension: " + extensions.systemFOmega)
+      variableLower
+      .repSep(comma.surroundedBy(whitespace))
+      .map(_.toList.toSeq.map((_, None))) <* whitespace
+    else
+      println("system F omega")
+      println("Extension: " + extensions.systemFOmega)
+      (variableLower <* ofType, `type`)
+        .mapN { (a, b) => 
+          println(s"param: $a, $b")
+          (a, Some(b)) }
+        .repSep(comma.surroundedBy(whitespace))
+        .map(_.toList.toSeq) <* whitespace
+
+  lazy val parametersT: P[Seq[(String, EType)]] = 
+    println("system F omega")
+    println("Extension: " + extensions.systemFOmega)
+    (variableUpper <* ofType, `type`)
+      .mapN { (a, b) => 
+        println(s"param: $a, $b")
+        (a, b) }
+      .repSep(comma.surroundedBy(whitespace))
+      .map(_.toList.toSeq) <* whitespace
 
   lazy val kind: P[EKind] = P.recursive[EKind] { rec =>
     val universe: P[EKind] = uni.map(_ => EKind.Star)
@@ -131,14 +147,20 @@ class ParserExpr(
           params.foldRight(body) { (param, body) => Abs(EType.Any, body) }
       }
 
+    val typeAbstraction: P[Expr] =
+      (lambdaT *> parametersT <* arrow, rec.backtrack).mapN {
+        (params, body) =>
+          params.foldRight(body) { (param, body) => Abs(EType.Any, body) }
+      }
+
     val atom: P[Expr] = variableExpr | naturals
 
-    val application: P[Expr] = (abstraction | atom.backtrack | rec.between(
+    val application: P[Expr] = (abstraction | typeAbstraction | atom.backtrack | rec.between(
       open_parentheses,
       close_parentheses
     )).rep.map { case NonEmptyList(head, tail) =>
       tail.foldLeft(head) { (acc, expr) => App(acc, expr) }
     }
 
-    abstraction | application
+    abstraction | typeAbstraction | application
   }
