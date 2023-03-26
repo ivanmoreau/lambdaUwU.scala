@@ -1,12 +1,14 @@
 package com.ivmoreau.lambdaCore
 
-import Expr.*
+import cats.data.{NonEmptyList, State}
 import cats.implicits.*
-import cats.data.NonEmptyList
-import mouse.all.*
-import cats.parse.{Parser => P, Parser0 => P0, *}
 import cats.instances.string
+import cats.{Eval, Traverse}
+import cats.parse.{Parser as P, Parser0 as P0, *}
 import cats.syntax.all.*
+import com.ivmoreau.lambdaCore.Expr.*
+import mouse.all.*
+
 import scala.util.Try
 
 /** Gramar
@@ -141,14 +143,45 @@ class ParserExpr(
     arrowP.backtrack | abstraction | forallP | application
   }
 
+  extension (rec: Expr)
+    def mapRec(f: PartialFunction[Expr, Expr]): Expr = rec match
+      case f(replaced) => replaced
+      case Expr.Lam(k, e) => Expr.Lam(k, e.mapRec(f))
+      case Expr.Abs(t, e) => Expr.Abs(t, e.mapRec(f))
+      case Expr.App(a, b) => Expr.App(a.mapRec(f), b.mapRec(f))
+      case otherwise => otherwise
+
+  def replaceFree(map: Map[String, Expr]) = {
+    case Expr.Free(v) if map.contains(v) => map(v)
+  }: PartialFunction[Expr, Expr]
+
+  // Bruijn
+  def bruijn[T](f: Int => T)(varName: String): State[Map[String, T], T] =
+    State[Map[String, T], T] { (s: Map[String, T]) =>
+      s.get(varName) match
+        // If already indexed, leave the map unchanged and return the index
+        case Some(idx) => (s, idx)
+        // If not already indexed, use the next index (s.size) for the Var,
+        // add it to the Map in state and return both
+        case None =>
+          val newElem: T = f(s.size)
+          val updated: Map[String, T] = s + (varName -> newElem)
+          (updated, newElem)
+    }
+
   lazy val expression: P[Expr] = P.recursive[Expr] { rec =>
     lazy val abstraction: P[Expr] =
       (lambda.backtrack *> parameters <* arrow, rec.backtrack).mapN {
         (params, body) =>
-          params.foldRight(body) {
+          val values: Map[String, Expr.Var] = Traverse[Seq]
+            .traverse(params.map(_._1))(bruijn[Expr.Var](Expr.Var))
+            .runS(Map.empty)
+            .value
+          val preResult = params.foldRight(body) {
             case ((_, Some(param)), body) => Abs(param, body)
             case ((_, None), body) => Abs(EType.Any, body)
           }
+          preResult.mapRec(replaceFree(values))
       }.withContext("abstraction")
 
     lazy val typeAbstraction: P[Expr] =
