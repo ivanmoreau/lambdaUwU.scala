@@ -13,17 +13,25 @@ import scala.util.Try
 
 /** Gramar
   *
+  * Type :=
+  * | TypeVariable -- Type variable (uppercase)
+  * | Type "=>" Type -- Arrow type.
+  * | "(" Type ")"
+  * | Type Type -- Type application.
+  * | Lambda TypeVariable ":" Kind "->" Type -- Type Abstraction.
+  * | "forall" TypeVariable ":" Kind "."  Type -- Universal type quantification.
+  * 
   * Expression :=
-  * \| "#" TypeVariable ":" Kind "->" Expression -- Type abstraction.
-  * \| TermVariable -- Variable (initial lowercase).
-  * \| Lambda TermVariable ":" Type "->" Expression -- Abstraction.
-  * \| Expression Expression -- Application.
-  * \| "(" Expression ")"
+  * | "#" TypeVariable ":" Kind "->" Expression -- Type abstraction.
+  * | TermVariable -- Variable (initial lowercase).
+  * | Lambda TermVariable ":" Type "->" Expression -- Abstraction.
+  * | Expression Expression -- Application.
+  * | "(" Expression ")"
   *
   * Declaration :=
-  * \| "let" TermVariable ":=" Expression "." Declaration*
-  * \| "type" TypeVariable ":=" Type "." Declaration*
-  * \| EndOfInput
+  * | "let" TermVariable ":=" Expression "." Declaration*
+  * | "type" TypeVariable ":=" Type "." Declaration*
+  * | EndOfInput
   *
   * Kind :=
   * \| "*" -- Universe.
@@ -143,6 +151,7 @@ class ParserExpr(
     arrowP.backtrack | abstraction | forallP | application
   }
 
+  // TODO: increment the counter in recursive calls
   extension (rec: Expr)
     def mapRecE(f: PartialFunction[Expr, Expr]): Expr = rec match
       case f(replaced) => replaced
