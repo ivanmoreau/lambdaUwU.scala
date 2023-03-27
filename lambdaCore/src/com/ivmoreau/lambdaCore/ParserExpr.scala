@@ -144,16 +144,35 @@ class ParserExpr(
   }
 
   extension (rec: Expr)
-    def mapRec(f: PartialFunction[Expr, Expr]): Expr = rec match
+    def mapRecE(f: PartialFunction[Expr, Expr]): Expr = rec match
       case f(replaced) => replaced
-      case Expr.Lam(k, e) => Expr.Lam(k, e.mapRec(f))
-      case Expr.Abs(t, e) => Expr.Abs(t, e.mapRec(f))
-      case Expr.App(a, b) => Expr.App(a.mapRec(f), b.mapRec(f))
+      case Expr.Lam(k, e) => Expr.Lam(k, e.mapRecE(f))
+      case Expr.Abs(t, e) => Expr.Abs(t, e.mapRecE(f))
+      case Expr.App(a, b) => Expr.App(a.mapRecE(f), b.mapRecE(f))
+      case otherwise => otherwise
+
+    def mapRecT(f: PartialFunction[EType, EType]): Expr = rec match
+      case Expr.Lam(k, e) => Expr.Lam(k, e.mapRecT(f))
+      case Expr.Abs(t, e) => Expr.Abs(t.mapRecT(f), e.mapRecT(f))
+      case Expr.App(a, b) => Expr.App(a.mapRecT(f), b.mapRecT(f))
+      case otherwise => otherwise
+
+  extension (rec: EType)
+    def mapRecT(f: PartialFunction[EType, EType]): EType = rec match
+      case f(replaced) => replaced
+      case EType.TAbs(k, t) => EType.TAbs(k, t.mapRecT(f))
+      case EType.TApp(l, r) => EType.TApp(l.mapRecT(f), r.mapRecT(f))
+      case EType.FAll(k, t) => EType.FAll(k, t.mapRecT(f))
+      case EType.~+>(p, e) => EType.~+>(p.mapRecT(f), e.mapRecT(f))
       case otherwise => otherwise
 
   def replaceFree(map: Map[String, Expr]) = {
     case Expr.Free(v) if map.contains(v) => map(v)
   }: PartialFunction[Expr, Expr]
+
+  def replaceFreeT(map: Map[String, EType]) = {
+    case EType.TFree(v) if map.contains(v) => map(v)
+  }: PartialFunction[EType, EType]
 
   // Bruijn
   def bruijn[T](f: Int => T)(varName: String): State[Map[String, T], T] =
@@ -174,20 +193,26 @@ class ParserExpr(
       (lambda.backtrack *> parameters <* arrow, rec.backtrack).mapN {
         (params, body) =>
           val values: Map[String, Expr.Var] = Traverse[Seq]
-            .traverse(params.map(_._1))(bruijn[Expr.Var](Expr.Var))
+            .traverse(params.reverse.map(_._1))(bruijn[Expr.Var](Expr.Var(_)))
             .runS(Map.empty)
             .value
           val preResult = params.foldRight(body) {
             case ((_, Some(param)), body) => Abs(param, body)
             case ((_, None), body) => Abs(EType.Any, body)
           }
-          preResult.mapRec(replaceFree(values))
+          preResult.mapRecE(replaceFree(values))
       }.withContext("abstraction")
 
     lazy val typeAbstraction: P[Expr] =
       (lambdaT *> parametersT <* arrow, rec.backtrack).mapN {
         (params, body) =>
-          params.foldRight(body) { case ((_, param), body) => Lam(param, body) }
+          val values: Map[String, EType.TVar] = Traverse[Seq]
+            .traverse(params.reverse.map(_._1))(bruijn[EType.TVar](EType.TVar(_)))
+            .runS(Map.empty)
+            .value
+          println(values)
+          val preResult = params.foldRight(body) { case ((_, param), body) => Lam(param, body) }
+          preResult.mapRecT(replaceFreeT(values))
       }.withContext("typeAbstraction")
 
     lazy val atom: P[Expr] = variableExpr | naturals

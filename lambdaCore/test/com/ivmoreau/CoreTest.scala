@@ -5,9 +5,10 @@ import org.scalacheck.Arbitrary.*
 import org.scalacheck.Prop.*
 import com.ivmoreau.lambdaCore.*
 
+import org.scalatest.matchers.should.Matchers._
+
 import scala.util.Try
 import org.scalacheck.Gen
-
 
 class CoreTest extends AnyFreeSpec with Checkers {
   "Native natural expressions" - {
@@ -106,15 +107,17 @@ class CoreTest extends AnyFreeSpec with Checkers {
       val function0 = "#A: *, B: * -> \\x: (A => B) -> x"
       val expected = Lam(Star, Lam(Star, Abs(~+>(TVar(1), TVar(0)), Var(0))))
       val extensions = Extensions(systemFOmega = true)
-      val parsed = ParserExpr(
-        function0,
-        extensions,
-        List("\\")
-      ).expression.parse(function0)
+      val parsed = ParserExpr(function0, extensions, List("")).expression
+        .parseAll(function0)
       parsed match
-        case Left(err) => println(show"$err")
-        case Right(parsed) => println(parsed)
-      true
+        case Left(err) =>
+          println(show"$err")
+          false
+        case Right(parsed) =>
+          println(parsed)
+          println(expected)
+          println(parsed == expected)
+          parsed shouldBe expected
     }
   }
 }

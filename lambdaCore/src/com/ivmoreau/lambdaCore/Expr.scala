@@ -120,12 +120,13 @@ extension (str: String)
         yield println(a)*/
         PrinterExpr(value.head).print()
 
+sealed trait SystemF
 
-enum EKind:
+enum EKind extends SystemF:
   case Star
   case ~*>(val p: EKind, val e: EKind)
 
-enum EType:
+enum EType extends SystemF:
   case TFree(val s: String)
   case TVar(val x: Int)
   case TAbs(val k: EKind, val t: EType)
@@ -134,7 +135,7 @@ enum EType:
   case ~+>(val p: EType, val e: EType)
   case Any
 
-enum Expr:
+enum Expr extends SystemF:
   case Free(val s: String)
   case Var(val x: Int)
   case Abs(val t: EType, val e: Expr)
