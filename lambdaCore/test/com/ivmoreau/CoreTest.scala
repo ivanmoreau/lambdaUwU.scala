@@ -96,4 +96,39 @@ class CoreTest extends AnyFreeSpec with Checkers {
       }
     }
   }
+
+  "Function test" - {
+    "curried" in {
+      import com.ivmoreau.lambdaCore.Expr.*
+
+      val extensions = Extensions()
+      val input = raw"\x -> \y -> \z -> x z (y z)"
+      val parsed =
+        ParserExpr(input, extensions, List("")).expression.parseAll(input)
+      val expected =
+        Abs(Abs(Abs(App(App(Var(2), Var(0)), App(Var(1), Var(0))))))
+      parsed match
+        case Left(err) =>
+          throw new java.lang.Exception(s"Error\n${show"$err"}")
+        case Right(parsed) =>
+          parsed shouldBe expected
+    }
+
+    "uncurried" in {
+      import com.ivmoreau.lambdaCore.Expr.*
+
+      val extensions = Extensions()
+      val input = raw"\x, y, z -> x z (y z)"
+      val parsed =
+        ParserExpr(input, extensions, List("")).expression.parseAll(input)
+      val expected =
+        Abs(Abs(Abs(App(App(Var(2), Var(0)), App(Var(1), Var(0))))))
+      parsed match
+        case Left(err) =>
+          throw new java.lang.Exception(s"Error\n${show"$err"}")
+        case Right(parsed) =>
+          parsed shouldBe expected
+    }
+  }
+
 }
