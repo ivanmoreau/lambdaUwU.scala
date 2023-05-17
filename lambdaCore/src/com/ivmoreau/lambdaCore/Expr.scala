@@ -50,7 +50,7 @@ val natFnExtensions: Map[String, Expr] = Map.from(List(
 })
 
 val boolFnExtensions: Map[String, Expr] = Map.from(List(
-  Expr.DFun("if", (a: KType) => a.getBoolean.map { (a: Boolean) => Expr.Abs(EType.Any, Expr.Abs(EType.Any, {
+  Expr.DFun("if", (a: KType) => a.getBoolean.map { (a: Boolean) => Expr.Abs(Expr.Abs({
     if a then Expr.Var(1) else Expr.Var(0)
   }))})
 ).map {
@@ -120,33 +120,16 @@ extension (str: String)
         yield println(a)*/
         PrinterExpr(value.head).print()
 
-sealed trait SystemF
-
-enum EKind extends SystemF:
-  case Star
-  case ~*>(val p: EKind, val e: EKind)
-
-enum EType extends SystemF:
-  case TFree(val s: String)
-  case TVar(val x: Int)
-  case TAbs(val k: EKind, val t: EType)
-  case TApp(val l: EType, val r: EType)
-  case FAll(val k: EKind, val t: EType)
-  case ~+>(val p: EType, val e: EType)
-  case Any
-
-enum Expr extends SystemF:
+enum Expr:
   case Free(val s: String)
   case Var(val x: Int)
-  case Abs(val t: EType, val e: Expr)
+  case Abs(val e: Expr)
   case App(val l: Expr, val r: Expr)
-  case Lam(val k: EKind, val e: Expr)
   case DVal(val d: KType)
   case DFun(val name: String, val f: KType => Option[Expr])
 
 enum Decl:
   case Bind(val name: String, val expr: Expr)
-  case BindT(val name: String, val ttype: EType)
 
 case class PrinterExpr(expr: Expr, ident: Int = 0, noIdent: Boolean = false):
   def print(): String =
@@ -158,7 +141,7 @@ case class PrinterExpr(expr: Expr, ident: Int = 0, noIdent: Boolean = false):
     val newExpr: String = expr match
       case Expr.Free(f) => f
       case Expr.Var(x) => x.toString
-      case Expr.Abs(t, e) => s"λ ->${identation._2}${this.copy(expr = e, ident = ident + 2).print()}"
+      case Expr.Abs(e) => s"λ ->${identation._2}${this.copy(expr = e, ident = ident + 2).print()}"
       case Expr.App(l, r) => s"(${this.copy(expr = l).print()} ${this.copy(expr = r).print()})"
       case Expr.DVal(v) => v.toString()
       case Expr.DFun(n, _) => n
@@ -171,25 +154,25 @@ case class Evaluator(expr: Expr, ctx: Map[String, Expr]):
     case (_, _, Free(n)) => Free(n)
     case (d, c, Var(n)) => if c <= n then Var(n + d) else Var(n)
     case (d, c, App(l, r)) => App(shift(d, c, l), shift(d, c, r))
-    case (d, c, Abs(t, e)) => Abs(t, shift(d, c + 1, e))
+    case (d, c, Abs(e)) => Abs(shift(d, c + 1, e))
     case (_, _, t) => t
 
   val unshift: (Int, Int, Expr) => Expr =
     case (_, _, Free(n)) => Free(n)
     case (d, c, Var(n)) => if c <= n then Var(n - d) else Var(n)
     case (d, c, App(l, r)) => App(unshift(d, c, l), unshift(d, c, r))
-    case (d, c, Abs(t, e)) => Abs(t, unshift(d, c + 1, e))
+    case (d, c, Abs(e)) => Abs(unshift(d, c + 1, e))
     case (_, _, t) => t
 
   val substitution: (Expr, Expr, Int) => Expr =
     case (Free(v), _, _) => Free(v)
     case (Var(n), e, m) => if n == m then e else Var(n)
     case (App(e1, e2), e, m) => App(substitution(e1, e, m), substitution(e2, e, m))
-    case (Abs(t, e1), e, m) => Abs(t, substitution(e1, shift(1, 0, e), m + 1))
+    case (Abs(e1), e, m) => Abs(substitution(e1, shift(1, 0, e), m + 1))
     case (t, _, _) => t
 
   val betaB: Expr => Expr =
-    case App(Abs(t, t1), t2) => unshift(1, 0, substitution(t1, shift(1, 0, t2), 0))
+    case App(Abs(t1), t2) => unshift(1, 0, substitution(t1, shift(1, 0, t2), 0))
     case App(DFun(n, f), DVal(v)) => f(v) match
       case None => App(DFun(n, f), DVal(v))
       case Some(value) => value
@@ -199,7 +182,7 @@ case class Evaluator(expr: Expr, ctx: Map[String, Expr]):
       case Some(value) => App(value, t2)
       case None => App(Free(v), t2)
     case App(t1, t2) => App(betaB(t1), t2)
-    case Abs(t, e) => Abs(t, betaB(e))
+    case Abs(e) => Abs(betaB(e))
     case Var(n) => Var(n)
     case Free(n) => ctx.get(n) match
       case Some(value) => value
