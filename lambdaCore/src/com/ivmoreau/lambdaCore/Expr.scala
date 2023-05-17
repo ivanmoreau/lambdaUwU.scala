@@ -1,11 +1,7 @@
 package com.ivmoreau.lambdaCore
 
 import scala.util.{Failure, Success, Try}
-import org.parboiled2.*
-
 import scala.annotation.tailrec
-import izumi.reflect.Tag
-import izumi.reflect.macrortti.LightTypeTag
 
 import cats.Applicative.*
 import cats.implicits.*
