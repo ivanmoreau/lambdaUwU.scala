@@ -46,7 +46,7 @@ class ParserExpr(
   lazy val context: P0[Seq[Decl]] = (declaration <* P.end)
 
   lazy val declaration: P0[Seq[Decl]] =
-    expressionDecl.repSep0(dot).map(_.toList.toSeq)
+    expressionDecl.repSep0(dot).map(_.toList.toSeq) <* dot.?
 
   lazy val expressionDecl: P[Decl] =
     (variableLower.filter(!reservedWords.contains(_)) <* definedAs, expression)
@@ -121,7 +121,7 @@ class ParserExpr(
 
     lazy val atom: P[Expr] = variableExpr | naturals
 
-    val application: P[Expr] = (abstraction | atom.backtrack | rec.between(
+    lazy val application: P[Expr] = (abstraction | atom.backtrack | rec.between(
       open_parentheses,
       close_parentheses
     )).rep
