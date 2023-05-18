@@ -110,9 +110,9 @@ class ParserExpr(
       (lambda.backtrack *> parameters <* arrow, rec.backtrack)
         .mapN { (xs, b) =>
           val map = xs
-            .foldRight((Map.empty[String, Int], 0)) {
-              case (s, (m, c)) => (m + ((s, c)), c + 1)
-            })
+            .foldRight((Map.empty[String, Int], 0)) { case (s, (m, c)) =>
+              (m + ((s, c)), c + 1)
+            }
             ._1
           xs.foldLeft(b.unfree(map))((abs, str) => Abs(abs))
         }

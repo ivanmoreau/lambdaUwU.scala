@@ -1,9 +1,21 @@
-- uses: jodersky/setup-mill@master
-  with:
-    mill-version: 0.10.10
-- name: JVMDesktop
-  run: mill lambdaDesktopJVM.run
-# the server process is kept alive across steps,
-# so separate invocations of mill remain extremely fast!
-- name: Test
-  run: mill lambdaCoreJVM.tests
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: workflow/nix-shell-action@v3
+        with:
+          packages: mill
+          script: |
+            mill lambdaDesktopJVM.compile
+            mill lambdaCoreJVM.compile
