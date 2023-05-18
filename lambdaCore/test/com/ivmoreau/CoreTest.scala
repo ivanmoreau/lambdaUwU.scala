@@ -33,7 +33,6 @@ class CoreTest extends AnyFreeSpec with Checkers {
             val extensions: Extensions = Extensions(useNativeNats = true)
             val computed =
               s"add ${a.toString} ${b.toString}".evaluate("")(extensions)
-            println(computed)
             val expected = (a + b).toString
             computed == expected
           }
@@ -98,59 +97,38 @@ class CoreTest extends AnyFreeSpec with Checkers {
     }
   }
 
-  "Typed Lambda" - {
+  "Function test" - {
+    "curried" in {
+      import com.ivmoreau.lambdaCore.Expr.*
 
-    import Expr.*
-    import EType.*
-    import EKind.*
-
-
-    def expr(s: String, e: Expr) = {
-      val extensions = Extensions(systemFOmega = true)
-      val parsed = ParserExpr(s, extensions, List("")).expression.parseAll(s)
+      val extensions = Extensions()
+      val input = raw"\x -> \y -> \z -> x z (y z)"
+      val parsed =
+        ParserExpr(input, extensions, List("")).expression.parseAll(input)
+      val expected =
+        Abs(Abs(Abs(App(App(Var(2), Var(0)), App(Var(1), Var(0))))))
       parsed match
         case Left(err) =>
           throw new java.lang.Exception(s"Error\n${show"$err"}")
         case Right(parsed) =>
-          parsed shouldBe e
+          parsed shouldBe expected
     }
 
+    "uncurried" in {
+      import com.ivmoreau.lambdaCore.Expr.*
 
-    "Can be parsed ~ 0" in {
-      val function = "#A: *, B: * -> \\x: (A => B) -> x"
-      val expected = Lam(Star, Lam(Star, Abs(~+>(TVar(1), TVar(0)), Var(0))))
-      expr(function, expected)
+      val extensions = Extensions()
+      val input = raw"\x, y, z -> x z (y z)"
+      val parsed =
+        ParserExpr(input, extensions, List("")).expression.parseAll(input)
+      val expected =
+        Abs(Abs(Abs(App(App(Var(2), Var(0)), App(Var(1), Var(0))))))
+      parsed match
+        case Left(err) =>
+          throw new java.lang.Exception(s"Error\n${show"$err"}")
+        case Right(parsed) =>
+          parsed shouldBe expected
     }
-
-    "Can be parsed ~ 1" in {
-      val function = "\\x: Nat -> \\y: Nat -> add x y"
-      val expected = Abs(TFree("Nat"), Abs(TFree("Nat"), App(App(Free("add"), Var(1)), Var(0))))
-      expr(function, expected)
-    }
-
-    "Can be parsed ~ 2" in {
-      val function = "\\x: (Nat => Nat) -> \\y: Nat -> x y"
-      val expected = Abs(~+>(TFree("Nat"), TFree("Nat")), Abs(TFree("Nat"), App(Var(1), Var(0))))
-      expr(function, expected)
-    }
-
-    "Can be parsed ~ 3" in {
-      val function = "#A: (* ~> *) -> #B: * -> \\x: (A B) -> x"
-      val expected = Lam(~*>(Star, Star), Lam(Star, Abs(~+>(TVar(1), TVar(0)), Var(0))))
-      expr(function, expected)
-    }
-
-    "Can be parsed ~ 4" in {
-      val function = "\\x: (Nat => Nat) -> \\y: (Nat => Nat) -> \\z: Nat -> x (y z)"
-      val expected = Abs(~+>(TFree("Nat"), TFree("Nat")), Abs(~+>(TFree("Nat"), TFree("Nat")), Abs(TFree("Nat"), App(Var(2), App(Var(1), Var(0))))))
-      expr(function, expected)
-    }
-
-    "Can be parsed ~ 5" in {
-      val function = "\\x: Nat => (Nat => Nat) -> x"
-      val expected = Abs(~+>(TFree("Nat"), ~+>(TFree("Nat"), TFree("Nat"))), Var(0))
-      expr(function, expected)
-    }
-    
   }
+
 }
