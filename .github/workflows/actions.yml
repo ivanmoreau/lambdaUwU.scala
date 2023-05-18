@@ -18,4 +18,4 @@ jobs:
           packages: mill
           script: |
             mill lambdaDesktopJVM.compile
-            mill lambdaCoreJVM.compile
+            mill lambdaCoreJVM.tests
