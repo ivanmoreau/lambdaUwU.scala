@@ -132,7 +132,7 @@ case class PrinterExpr(expr: Expr, ident: Int = 0, noIdent: Boolean = false):
     val identation = if (noIdent) {
       ("", "")
     } else {
-      (" ".repeat(ident), "\n")
+      (Seq.fill(ident)(" ").mkString, "\n")
     }
     val newExpr: String = expr match
       case Expr.Free(f) => f
